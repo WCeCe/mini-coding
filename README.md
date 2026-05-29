@@ -12,6 +12,7 @@ It is a minimal local agent loop with:
 - stable prompt plus turn state
 - structured tools
 - approval handling for risky tools
+- **change governance** for file writes (diff preview, checkpoint, rollback)
 - transcript and memory persistence
 - bounded delegation
 
@@ -155,10 +156,50 @@ Example:
 uv run mini-coding-agent --approval auto
 ```
 
-
-
 &nbsp;
-## Resume Sessions
+## Change Governance
+
+When the agent calls `write_file` or `patch_file`, the runtime applies a **change governance** layer before anything is written to disk. The model still uses the same tool format; governance sits in the execution layer.
+
+### What happens on a file change
+
+1. The agent reads the current file from disk and computes the proposed content in memory.
+2. A **unified diff** is shown in the terminal (when `--approval ask` is active).
+3. If the git working tree has uncommitted changes, a **read-only warning** is printed before you approve.
+4. After you approve, a **checkpoint** is saved under:
+
+   ```text
+   .mini-coding-agent/checkpoints/<session-id>/
+   ```
+
+5. The file is written with an **atomic replace** (temp file, then rename).
+6. If the write fails, the runtime **rolls back** from the checkpoint.
+
+If you **deny** approval, nothing is written and no checkpoint is created.
+
+### Session audit trail
+
+Saved sessions (`.mini-coding-agent/sessions/`) record governance metadata for file tools, including a diff summary, checkpoint id, and whether a rollback occurred. Full diffs are not duplicated into the model prompt; only a short summary is kept in history.
+
+### Approval modes and file tools
+
+| Mode | File change behavior |
+|------|----------------------|
+| `ask` (default) | Shows unified diff, then prompts `approve this change? [y/n]` |
+| `auto` | Skips the prompt; still checkpoints and uses atomic writes |
+| `never` | Denies all risky tools, including file writes |
+
+`run_shell` is unchanged: it still prompts with the raw tool arguments, not a diff.
+
+### Known limitations (Phase 1)
+
+- **No rollback for `run_shell`.** Shell commands can change files in ways the agent cannot track, so only `write_file` and `patch_file` are governed.
+- **Per-tool rollback only.** If one user request triggers several file tools, each step has its own checkpoint. There is no single undo for the entire request.
+- **No automatic `git commit`.** Git integration is read-only (status warnings only).
+- **Large diffs** are printed in full to the terminal; there is no pager or Web UI.
+- **External edits during a session:** if you manually change a file after the agent wrote it, automatic rollback may skip with an explicit error rather than overwrite your edits.
+
+For a walkthrough that hits file writes and approvals, see [EXAMPLE.md](EXAMPLE.md).
 
 The agent saves sessions under the target workspace root in:
 

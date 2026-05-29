@@ -28,7 +28,9 @@ feedback/<TASK_ID>.md
 
 | TASK_ID | 状态 | 主 Agent 结论 |
 |---------|------|---------------|
-| — | — | 暂无 |
+| P1-CHANGE-GOVERNANCE | 通过 | 主 Agent 复审 2026-05-29 |
+| P1-DOCS | 通过 | 主 Agent 复审 2026-05-29 |
+| P1-REVIEW | 待审 | 子 Agent 结论：**通过** |
 
 *验收后由主 Agent 更新。*
 

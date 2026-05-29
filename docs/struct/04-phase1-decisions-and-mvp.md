@@ -51,11 +51,11 @@
 
 ### 纳入
 
-- [ ] 修改前自动生成 unified diff
-- [ ] 审批时展示 diff（非原始 content / old_text）
-- [ ] 每次 write/patch 前 checkpoint
-- [ ] 拒绝或失败可回滚
-- [ ] session 记录 diff 摘要、checkpoint id、是否回滚
+- [x] 修改前自动生成 unified diff
+- [x] 审批时展示 diff（非原始 content / old_text）
+- [x] 每次 write/patch 前 checkpoint
+- [x] 拒绝或失败可回滚
+- [x] session 记录 diff 摘要、checkpoint id、是否回滚
 
 ### 推迟到 Phase 2+
 

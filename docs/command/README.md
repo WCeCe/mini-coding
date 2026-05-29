@@ -9,9 +9,9 @@
 | TASK_ID | 说明 | 状态 |
 |---------|------|------|
 | [PHASE1-OVERVIEW](./PHASE1-OVERVIEW.md) | 总规划、边界、规范（必读） | — |
-| [P1-CHANGE-GOVERNANCE](./P1-CHANGE-GOVERNANCE.md) | 实现变更治理 + 测试 | 待执行 |
-| [P1-DOCS](./P1-DOCS.md) | 用户文档 | 待执行 |
-| [P1-REVIEW](./P1-REVIEW.md) | 总验收 | 待执行 |
+| [P1-CHANGE-GOVERNANCE](./P1-CHANGE-GOVERNANCE.md) | 实现变更治理 + 测试 | ✅ 已通过 |
+| [P1-DOCS](./P1-DOCS.md) | 用户文档 | ✅ 已通过 |
+| [P1-REVIEW](./P1-REVIEW.md) | 总验收 | ✅ Phase 1 结项 |
 
 ---
 

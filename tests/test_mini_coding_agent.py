@@ -1,4 +1,5 @@
 import json
+import subprocess
 import pytest
 from unittest.mock import patch
 
@@ -397,3 +398,151 @@ def test_ollama_client_posts_expected_payload():
     assert captured["body"]["raw"] is False
     assert captured["body"]["think"] is False
     assert captured["body"]["options"]["num_predict"] == 42
+
+
+def test_approval_denied_leaves_file_unchanged(tmp_path):
+    target = tmp_path / "keep.txt"
+    target.write_text("original\n", encoding="utf-8")
+    agent = build_agent(tmp_path, [], approval_policy="never")
+
+    result = agent.run_tool(
+        "patch_file",
+        {"path": "keep.txt", "old_text": "original", "new_text": "changed"},
+    )
+
+    assert result == "错误：patch_file 审批被拒绝"
+    assert target.read_text(encoding="utf-8") == "original\n"
+
+
+def test_write_file_records_diff_metadata(tmp_path):
+    agent = build_agent(tmp_path, [], approval_policy="auto")
+
+    result = agent.run_tool("write_file", {"path": "new.py", "content": "x = 1\n"})
+
+    assert result == "wrote new.py (6 chars)"
+    assert (tmp_path / "new.py").read_text(encoding="utf-8") == "x = 1\n"
+    assert agent._last_tool_meta["checkpoint_id"].startswith("cp-")
+    assert "diff_summary" in agent._last_tool_meta
+    assert agent._last_tool_meta["rolled_back"] is False
+
+
+def test_ask_records_governance_metadata_in_history(tmp_path):
+    agent = build_agent(
+        tmp_path,
+        [
+            '<tool>{"name":"write_file","args":{"path":"tracked.py","content":"ok\\n"}}</tool>',
+            "<final>Done.</final>",
+        ],
+        approval_policy="auto",
+    )
+
+    agent.ask("Write tracked.py")
+
+    tool_events = [item for item in agent.session["history"] if item["role"] == "tool"]
+    assert tool_events[-1]["checkpoint_id"].startswith("cp-")
+    assert tool_events[-1]["rolled_back"] is False
+
+
+def test_write_failure_rolls_back_new_file(tmp_path):
+    agent = build_agent(tmp_path, [], approval_policy="auto")
+    target = tmp_path / "fail.py"
+
+    with patch("mini_coding_agent.atomic_write_text", side_effect=OSError("disk full")):
+        result = agent.run_tool("write_file", {"path": "fail.py", "content": "boom\n"})
+
+    assert "错误：工具 write_file 执行失败" in result
+    assert "已回滚：已删除新建文件" in result
+    assert not target.exists()
+    assert agent._last_tool_meta["rolled_back"] is True
+
+
+def test_patch_failure_restores_original_content(tmp_path):
+    target = tmp_path / "sample.txt"
+    target.write_text("hello world\n", encoding="utf-8")
+    agent = build_agent(tmp_path, [], approval_policy="auto")
+
+    with patch(
+        "mini_coding_agent.atomic_write_text",
+        side_effect=[OSError("disk full"), None],
+    ):
+        result = agent.run_tool(
+            "patch_file",
+            {"path": "sample.txt", "old_text": "world", "new_text": "agent"},
+        )
+
+    assert "错误：工具 patch_file 执行失败" in result
+    assert "已回滚：已恢复文件" in result
+    assert target.read_text(encoding="utf-8") == "hello world\n"
+    assert agent._last_tool_meta["rolled_back"] is True
+
+
+def test_restore_skips_when_file_modified_externally(tmp_path):
+    target = tmp_path / "sample.txt"
+    target.write_text("hello world\n", encoding="utf-8")
+    agent = build_agent(tmp_path, [], approval_policy="auto")
+    from mini_coding_agent import text_sha256
+
+    checkpoint = {
+        "id": "cp-test",
+        "session_id": agent.session["id"],
+        "tool_name": "patch_file",
+        "path": "sample.txt",
+        "existed": True,
+        "content": "hello world\n",
+        "sha256_before": text_sha256("hello world\n"),
+        "created_at": "now",
+    }
+    target.write_text("user edited\n", encoding="utf-8")
+
+    result = agent._restore_checkpoint(checkpoint)
+
+    assert result == "回滚已跳过：文件已被外部修改"
+    assert target.read_text(encoding="utf-8") == "user edited\n"
+
+
+def test_approve_shows_diff_not_raw_json(tmp_path, capsys):
+    target = tmp_path / "hello.txt"
+    target.write_text("alpha\n", encoding="utf-8")
+    agent = build_agent(tmp_path, [], approval_policy="ask")
+
+    with patch("builtins.input", return_value="n"):
+        agent.run_tool(
+            "patch_file",
+            {"path": "hello.txt", "old_text": "alpha", "new_text": "beta"},
+        )
+
+    captured = capsys.readouterr().out
+    assert "--- change preview:" in captured
+    assert "--- end diff ---" in captured
+    assert "-alpha" in captured or "+beta" in captured
+    assert '"old_text"' not in captured
+
+
+def test_git_dirty_warning_shown_on_approval(tmp_path, capsys):
+    try:
+        subprocess.run(["git", "init"], cwd=tmp_path, check=True, capture_output=True)
+    except (FileNotFoundError, subprocess.CalledProcessError):
+        pytest.skip("git not available")
+    target = tmp_path / "dirty.txt"
+    target.write_text("a\n", encoding="utf-8")
+    subprocess.run(["git", "add", "dirty.txt"], cwd=tmp_path, check=True, capture_output=True)
+    target.write_text("b\n", encoding="utf-8")
+    agent = build_agent(tmp_path, [], approval_policy="ask")
+
+    with patch("builtins.input", return_value="n"):
+        agent.run_tool("write_file", {"path": "other.py", "content": "x\n"})
+
+    captured = capsys.readouterr().out
+    assert "Git 警告" in captured
+
+
+def test_run_shell_approval_unchanged(tmp_path):
+    agent = build_agent(tmp_path, [], approval_policy="ask")
+
+    with patch("builtins.input", return_value="n") as mock_input:
+        result = agent.run_tool("run_shell", {"command": "echo hi", "timeout": 5})
+
+    assert result == "错误：run_shell 审批被拒绝"
+    prompt = mock_input.call_args.args[0]
+    assert "approve run_shell" in prompt
+    assert "change preview" not in prompt

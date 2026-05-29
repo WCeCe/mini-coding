@@ -54,9 +54,7 @@ uv run mini-coding-agent \
 
 <img src="https://sebastianraschka.com/images/github/mini-coding-agent/1.webp" width="500px">
 
-
-
-&nbsp;
+With the default `--approval ask`, each `write_file` or `patch_file` call shows a **unified diff** in the terminal before you approve. See [README.md — Change Governance](README.md#change-governance) for checkpoint, rollback, and known limits.
 
 ## 3. Ask it to implement binary search
 

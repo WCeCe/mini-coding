@@ -1,4 +1,6 @@
 import argparse
+import difflib
+import hashlib
 import json
 import re
 import shutil
@@ -68,6 +70,62 @@ def middle(text, limit):
     right = limit - 3 - left
     return text[:left] + "..." + text[-right:]
 
+#把任意文本内容转换成一个固定长度的 SHA-256 哈希值
+def text_sha256(text):
+    return hashlib.sha256(str(text).encode("utf-8")).hexdigest()
+
+#一个文本文件的 SHA-256 哈希值
+def file_sha256(path):
+    if not path.is_file():
+        return None
+    return text_sha256(path.read_text(encoding="utf-8"))
+
+#保证原子性，先临时再原子替换
+def atomic_write_text(path, content):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    #创建一个临时文件，后缀为.mini-agent.tmp，with_suffix替换路径中的文件后缀名
+    tmp = path.with_suffix(path.suffix + ".mini-agent.tmp")
+    tmp.write_text(str(content), encoding="utf-8")
+    tmp.replace(path)
+
+#构建unified diff，并返回渲染后的字符串
+def build_unified_diff(rel_path, before, after):
+    #按行对比
+    before_lines = str(before).splitlines(keepends=True)
+    after_lines = str(after).splitlines(keepends=True)
+    #都为空，则返回(no changes)
+    if not before_lines and not after_lines:
+        return "(no changes)"
+    #diff格式
+    diff_lines = difflib.unified_diff(
+        before_lines,
+        after_lines,
+        fromfile=f"a/{rel_path}",
+        tofile=f"b/{rel_path}",
+        lineterm="",
+    )
+    #渲染成字符串
+    rendered = "\n".join(diff_lines)
+    #如果有变化，则返回渲染后的字符串
+    if rendered:
+        return rendered
+    #没有变化，则返回(no changes)
+    if before_lines == after_lines:
+        return "(no changes)"
+    return f"--- a/{rel_path}\n+++ b/{rel_path}\n(file changed)"
+
+#用于审计，存入sessions里面，有40行的限制，但是审批的时候是完整的diff
+def diff_summary(diff_text, max_lines=40):
+    #按行分割
+    lines = str(diff_text).splitlines()
+    #如果行数小于等于40，则返回diff_text
+    if len(lines) <= max_lines:
+        return diff_text
+    #超过40行，则截断，返回前40行，后面加上... (omitted more lines)
+    omitted = len(lines) - max_lines
+    return "\n".join(lines[:max_lines]) + f"\n... ({omitted} more lines)"
+
 
 ##############################
 #### 1) Live Repo Context ####
@@ -120,6 +178,7 @@ class WorkspaceContext:
                     check=True,
                     timeout=5,
                 )
+                #终端打印出来的结果，或者fallback
                 return result.stdout.strip() or fallback
             except Exception:
                 return fallback
@@ -167,6 +226,35 @@ class WorkspaceContext:
             docs,
         ])
 
+    #在更改代码前，查询git状态，防止修改了用户没有提交的代码
+    def refresh_git_status(self):
+        repo_root = Path(self.repo_root)
+
+        def git(args, fallback=""):
+            try:
+                result = subprocess.run(
+                    ["git", *args],
+                    cwd=repo_root,
+                    capture_output=True,
+                    text=True,
+                    check=True,
+                    timeout=5,
+                )
+                return result.stdout.strip() or fallback
+            except Exception:
+                return fallback
+        #clean是fallback的默认值，如果返回成功但是为空，则也是clean
+        status = git(["status", "--short"], "clean") or "clean"
+        self.status = clip(status, 1500)
+        return self.status
+
+    #如果git状态不为clean，则返回警告，告诉用户有未提交的修改
+    def git_dirty_warning(self):
+        status = self.refresh_git_status()
+        if status.strip() in {"", "clean"}:
+            return None
+        return "Git 警告：工作区存在未提交的更改\n" + status
+
 
 ##############################
 #### 5) Session Memory #######
@@ -195,6 +283,23 @@ class SessionStore:
     def latest(self):
         files = sorted(self.root.glob("*.json"), key=lambda path: path.stat().st_mtime)
         return files[-1].stem if files else None
+
+
+class CheckpointStore:
+    #.mini-coding-agent/checkpoints/这里存储修改前的代码
+    def __init__(self, root):
+        self.root = Path(root)
+        self.root.mkdir(parents=True, exist_ok=True)
+
+    #按session分目录，每个 checkpoint 一个 JSON 文件。
+    #分两级，session为第一级，checkpoint为第二级（tool级别，也就是代表这次tool的改动）
+    def save(self, checkpoint):
+        #.mini-coding-agent/checkpoints/20260529-abc123/
+        session_dir = self.root / checkpoint["session_id"]
+        session_dir.mkdir(parents=True, exist_ok=True)
+        path = session_dir / f"{checkpoint['id']}.json"
+        path.write_text(json.dumps(checkpoint, indent=2), encoding="utf-8")
+        return checkpoint
 
 #测试用的，不管
 class FakeModelClient:
@@ -280,6 +385,9 @@ class MiniAgent:
         self.depth = depth
         self.max_depth = max_depth
         self.read_only = read_only
+        self.checkpoint_store = CheckpointStore(self.root / ".mini-coding-agent" / "checkpoints")
+        #是「上一次文件写操作」的治理附加信息（diff 摘要、checkpoint id、是否回滚）
+        self._last_tool_meta = {}
         #如果没有旧会话，则初始化session
         self.session = session or {
             "id": datetime.now().strftime("%Y%m%d-%H%M%S") + "-" + uuid.uuid4().hex[:6],
@@ -561,9 +669,8 @@ class MiniAgent:
                 args = payload.get("args", {})
                 #得到工具调用后的结果
                 result = self.run_tool(name, args)
-                #记录到历史中
-                self.record(
-                    {
+                #先用一个变量记录基本的信息
+                tool_record = {
                         "role": "tool",
                         #工具名字write_file等
                         "name": name,
@@ -571,7 +678,14 @@ class MiniAgent:
                         "content": result,
                         "created_at": now(),
                     }
-                )
+                #如果self._last_tool_meta不为空，则更新tool_record
+                if self._last_tool_meta:
+                    #将self._last_tool_meta的变更治理的附加信息更新到tool_record里面
+                    tool_record.update(self._last_tool_meta)
+                    #清空self._last_tool_meta，因为已经记录到tool_record里面了
+                    self._last_tool_meta = {}
+                #记录到历史中
+                self.record(tool_record)
                 #记录到memory中
                 self.note_tool(name, args, result)
                 continue
@@ -601,6 +715,7 @@ class MiniAgent:
     #############################################################
     #运行工具
     def run_tool(self, name, args):
+        self._last_tool_meta = {}
         #从build好的tools中找到对应的
         tool = self.tools.get(name)
         if tool is None:
@@ -617,9 +732,12 @@ class MiniAgent:
         #校验是否连续使用工具，谨防死循环
         if self.repeated_tool_call(name, args):
             return f"error: repeated identical tool call for {name}; choose a different tool or return a final answer"
+        #这里调用_run_governed_file_tool，也就是治理主流程，不走传统的write_file两个工具了
+        if name in {"write_file", "patch_file"}:
+            return self._run_governed_file_tool(name, args)
         #是否允许使用有风险的工具
         if tool["risky"] and not self.approve(name, args):
-            return f"error: approval denied for {name}"
+            return f"错误：{name} 审批被拒绝"
         try:
             #在 build_tools() 里，每个工具都注册了 "run"，指向一个 Python 方法，"run": self.tool_read_file
             #tool["run"](args)等价于self.tool_read_file(args)
@@ -719,8 +837,91 @@ class MiniAgent:
                 raise ValueError("task must not be empty")
             return
 
+#处理写文件和patch文件的治理主流程
+    def _run_governed_file_tool(self, name, args):
+        self._last_tool_meta = {}
+        path = self.path(args["path"])
+        rel_path = str(path.relative_to(self.root))
+        #查看文件是否存在，在后续回溯的时候，如果存在，则恢复内容，如果不存在则直接删除
+        existed = path.is_file()
+        before = path.read_text(encoding="utf-8") if existed else ""
+        #执行write_file或patch_file，得到proposed content。这里的before其实是整个text文本内容
+        proposed = self._proposed_file_content(name, args, before)
+        #计算diff，也就是计算这次tool的改动和上一次的改动之间的差异
+        diff_text = build_unified_diff(rel_path, before, proposed)
+        #查询git状态，如果有未提交的更改，则返回警告
+        git_warning = self.workspace.git_dirty_warning()
+        #受理并输出，用户进行审批，如果审批不通过，则返回错误
+        if not self.approve(name, args, diff=diff_text, git_warning=git_warning):
+            return f"错误：{name} 审批被拒绝"
+
+        #只有write文件和patch文件需要保存checkpoint，其他工具不需要
+        checkpoint = {
+            #每一个治理的唯一id
+            "id": "cp-" + uuid.uuid4().hex[:12],
+            "session_id": self.session["id"],
+            "tool_name": name,
+            "path": rel_path,
+            #文件是否存在，以便后续恢复还是删除
+            "existed": existed,
+            #恢复的文件内容，如果存在则返回，不存在则返回None
+            "content": before if existed else None,
+            #文件内容的sha256值，如果存在则返回，不存在则返回None
+            "sha256_before": text_sha256(before) if existed else None,
+            "created_at": now(),
+        }
+        try:
+            #存到磁盘
+            self.checkpoint_store.save(checkpoint)
+        except Exception as exc:
+            return f"错误：{name} 检查点保存失败：{exc}"
+
+        #记录治理的附加信息,主要用于审计，后面通过record方法记录到session里面
+        self._last_tool_meta = {
+            #diff的摘要
+            "diff_summary": diff_summary(diff_text),
+            "checkpoint_id": checkpoint["id"],
+            #是否回滚标识
+            "rolled_back": False,
+        }
+        try:
+            #原子写入文件，如果失败则回滚
+            atomic_write_text(path, proposed)
+        except Exception as exc:
+            rollback = self._restore_checkpoint(checkpoint)
+            self._last_tool_meta["rolled_back"] = True
+            return f"错误：工具 {name} 执行失败：{exc}; {rollback}"
+
+        if name == "write_file":
+            return f"wrote {rel_path} ({len(proposed)} chars)"
+        return f"patched {rel_path}"
+
+    #如果是write_file，直接返回要写的内容，如果不是，那么就是patch_file，则替换旧内容为新内容，返回全部的text文本
+    def _proposed_file_content(self, name, args, before):
+        if name == "write_file":
+            return str(args["content"])
+        old_text = str(args.get("old_text", ""))
+        return before.replace(old_text, str(args["new_text"]), 1)
+
+    #回滚
+    def _restore_checkpoint(self, checkpoint):
+        path = self.root / checkpoint["path"]
+        #如果文件不存在，则直接删除
+        if not checkpoint["existed"]:
+            if path.exists():
+                path.unlink()
+            return "已回滚：已删除新建文件"
+        current_hash = file_sha256(path)
+        before_hash = checkpoint["sha256_before"]
+        #计算两者是否一样，不一样则跳过回滚，因为文件已被外部修改，无法恢复
+        if current_hash is not None and before_hash is not None and current_hash != before_hash:
+            return "回滚已跳过：文件已被外部修改"
+        #恢复文件内容
+        atomic_write_text(path, checkpoint["content"])
+        return "已回滚：已恢复文件"
+
     #是否允许使用能修改你代码的工具（写、执行命令、替换)
-    def approve(self, name, args):
+    def approve(self, name, args, *, diff=None, git_warning=None):
         if self.read_only:
             return False
         if self.approval_policy == "auto":
@@ -728,7 +929,18 @@ class MiniAgent:
         if self.approval_policy == "never":
             return False
         try:
-            answer = input(f"approve {name} {json.dumps(args, ensure_ascii=True)}? [y/n] ")
+            if diff is not None:
+                rel_path = str(args.get("path", ""))
+                print(f"--- change preview: {name} {rel_path} ---")
+                print(diff)
+                print("--- end diff ---")
+            if git_warning:
+                print(git_warning)
+            if diff is not None:
+                answer = input("approve this change? [y/n] ")
+            #因为diff是空，则有可能是其他risky工具，所以需要询问用户是否批准
+            else:
+                answer = input(f"approve {name} {json.dumps(args, ensure_ascii=True)}? [y/n] ")
         except EOFError:
             return False
         return answer.strip().lower() in {"y", "yes"}
@@ -966,8 +1178,7 @@ class MiniAgent:
     def tool_write_file(self, args):
         path = self.path(args["path"])
         content = str(args["content"])
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(content, encoding="utf-8")
+        atomic_write_text(path, content)
         return f"wrote {path.relative_to(self.root)} ({len(content)} chars)"
 
     def tool_patch_file(self, args):
@@ -983,7 +1194,7 @@ class MiniAgent:
         count = text.count(old_text)
         if count != 1:
             raise ValueError(f"old_text must occur exactly once, found {count}")
-        path.write_text(text.replace(old_text, str(args["new_text"]), 1), encoding="utf-8")
+        atomic_write_text(path, text.replace(old_text, str(args["new_text"]), 1))
         return f"patched {path.relative_to(self.root)}"
 
     ###################################################

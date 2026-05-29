@@ -38,7 +38,9 @@
 | Phase 1 四个决策 | ✅ 已对齐（2026-05-29） |
 | Phase 1 实现设计稿 | ✅ 已确认 |
 | Phase 1 任务单 | ✅ 已派发（`P1-CHANGE-GOVERNANCE` / `P1-DOCS` / `P1-REVIEW`） |
-| Phase 1 实现代码 | 🔄 待子 Agent 按序执行 |
+| Phase 1 变更治理实现 | ✅ P1-CHANGE-GOVERNANCE 已通过 |
+| Phase 1 README | ✅ P1-DOCS 已通过 |
+| Phase 1 总验收 | ✅ **Phase 1 已完成** |
 | 用户调研 `my_research/phase_1/` | 🔄 进行中（与实现并行） |
 | `feedback/` 回报 | 随任务完成递增 |
 
