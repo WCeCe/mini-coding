@@ -9,8 +9,9 @@
 1. [`01-vision-and-roadmap.md`](./01-vision-and-roadmap.md) — 总目标、铁律、路线图
 2. [`phase1.md`](./phase1.md) — 变更治理 ✅
 3. [`phase2.md`](./phase2.md) — Hook + 可观测 + 重构 ✅
-4. [`02-codebase-reference.md`](./02-codebase-reference.md) — 代码架构速查
-5. [`03-collaboration-model.md`](./03-collaboration-model.md) — 主/子 Agent 分工
+4. [`phase3.md`](./phase3.md) — 任务规划 + coding 链路深度 🚧（首项 ✅）
+5. [`02-codebase-reference.md`](./02-codebase-reference.md) — 代码架构速查
+6. [`03-collaboration-model.md`](./03-collaboration-model.md) — 主/子 Agent 分工
 
 ---
 
@@ -20,7 +21,7 @@
 |------|------|------|
 | `phase1.md` | 变更治理（diff、checkpoint、回滚） | ✅ |
 | `phase2.md` | Hook 扩展 + 三层栈 + 包重构 + YAML | ✅ |
-| `phase3.md` | （未开工） | — |
+| `phase3.md` | 任务规划 + coding 链路深度 | 🚧 首项 ✅ · 后续未派活 |
 
 > 原 Phase 2.1（终端 trace、shell 审计、YAML）已并入 `phase2.md`，不再单独成阶段。
 
@@ -32,6 +33,7 @@
 |------|------|
 | Phase 1 | ✅ |
 | Phase 2（含 Hook 用户价值） | ✅ |
-| 测试 | 43 passed, 1 skipped |
-
-*新大阶段：`phase3.md`*
+| Phase 3 | 🚧 进行中 |
+| Phase 3 首项（make_plan + docs） | ✅ P3-REVIEW 2026-06-02 |
+| 测试 | 53 passed, 1 skipped |
+| benchmark | 暂缓（设计稳后再量化） |

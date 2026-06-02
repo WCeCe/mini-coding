@@ -30,7 +30,7 @@
 |--------|------|------|
 | P0 | 无 diff 预览、无 checkpoint/回滚 | ~~Phase 1~~ ✅ |
 | P1 | 无可观测性（trace、耗时） | ~~Phase 2~~ ✅ 轻量 |
-| P1 | 无 benchmark / 回归任务集 | 待做 |
+| P1 | 无 benchmark / 回归任务集 | **暂缓**（coding 链路设计稳后再做） |
 | P2 | `run_shell` 全权限、无阻断 | 部分（Phase 2 仅审计告警） |
 | P2 | 单文件、无扩展点 | ~~Phase 2~~ ✅ 已拆包 + Hook |
 | P3 | 仅 Ollama、非流式 | 按需 |
@@ -49,9 +49,9 @@
 
 含：工具边界 Hook、包重构、终端 trace、shell 审计、YAML 配置。详见 [`phase2.md`](./phase2.md)。
 
-### Phase 3（未开工）
+### Phase 3 — 任务规划 + coding 链路深度 🚧
 
-见 [`phase2.md`](./phase2.md) §5 后续可优化；新阶段另建 `phase3.md`。
+首项（`make_plan` + `--plan-first` + README）✅ 已结项。benchmark 量化暂缓。详见 [`phase3.md`](./phase3.md)。
 
 ---
 

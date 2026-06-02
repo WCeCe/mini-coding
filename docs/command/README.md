@@ -29,6 +29,20 @@ Phase 2 分两次派活，同属一个大阶段；struct 见 [`phase2.md`](../st
 
 ---
 
+## Phase 3 任务（进行中）
+
+策略：先 coding 链路深度，benchmark 暂缓。struct 见 [`phase3.md`](../struct/phase3.md)。
+
+| TASK_ID | 说明 | 状态 |
+|---------|------|------|
+| [PHASE3-OVERVIEW](./PHASE3-OVERVIEW.md) | 总规划（make_plan 首项） | — |
+| [P3-MAKE-PLAN](./P3-MAKE-PLAN.md) | 任务规划工具 + `--plan-first` | ✅ |
+| [P3-DOCS](./P3-DOCS.md) | README 用户说明 | ✅ |
+| [P3-REVIEW](./P3-REVIEW.md) | Phase 3 首项总验收 | ✅ |
+| [P3-WALKTHROUGH](./P3-WALKTHROUGH.md) | 中文说明 + 代码注释 | ✅ |
+
+---
+
 ## 新任务
 
-复制 [`TEMPLATE.md`](./TEMPLATE.md)。Phase 3 起新建 `phase3.md` + `command/PHASE3-*`。
+复制 [`TEMPLATE.md`](./TEMPLATE.md)。

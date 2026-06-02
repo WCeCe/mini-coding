@@ -89,6 +89,8 @@ def build_agent(args):
         max_steps=args.max_steps,
         max_new_tokens=args.max_new_tokens,
         hook_config=hook_config,
+        # Phase 3: --plan-first → 每条 ask 须先成功 make_plan 再允许 risky tool
+        plan_first=args.plan_first,
     )
     if session_id == "latest":
         session_id = store.latest()
@@ -114,43 +116,49 @@ def build_agent(args):
 def build_arg_parser():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
-        description="Minimal coding agent for Ollama models.",
+        description="基于 Ollama 的本地小型编程 Agent。",
     )
-    parser.add_argument("prompt", nargs="*", help="Optional one-shot prompt.")
-    parser.add_argument("--cwd", default=".", help="Workspace directory.")
-    parser.add_argument("--model", default="qwen3.5:4b", help="Ollama model name.")
-    parser.add_argument("--host", default="http://127.0.0.1:11434", help="Ollama server URL.")
-    parser.add_argument("--ollama-timeout", type=int, default=300, help="Ollama request timeout in seconds.")
-    parser.add_argument("--resume", default=None, help="Session id to resume or 'latest'.")
+    parser.add_argument("prompt", nargs="*", help="可选：一次性任务提示（不跟则进入 REPL）。")
+    parser.add_argument("--cwd", default=".", help="工作区目录。")
+    parser.add_argument("--model", default="qwen3.5:4b", help="Ollama 模型名称。")
+    parser.add_argument("--host", default="http://127.0.0.1:11434", help="Ollama 服务地址。")
+    parser.add_argument("--ollama-timeout", type=int, default=300, help="Ollama 请求超时（秒）。")
+    parser.add_argument("--resume", default=None, help="恢复的 session id，或 latest。")
     parser.add_argument(
         "--approval",
         choices=("ask", "auto", "never"),
         default="ask",
-        help="Approval policy for risky tools; auto grants the model arbitrary command execution and file writes.",
+        help="risky 工具审批策略；auto 表示自动批准写文件与 run_shell。",
     )
-    parser.add_argument("--max-steps", type=int, default=6, help="Maximum tool/model iterations per request.")
-    parser.add_argument("--max-new-tokens", type=int, default=512, help="Maximum model output tokens per step.")
-    parser.add_argument("--temperature", type=float, default=0.2, help="Sampling temperature sent to Ollama.")
-    parser.add_argument("--top-p", type=float, default=0.9, help="Top-p sampling value sent to Ollama.")
+    parser.add_argument("--max-steps", type=int, default=6, help="每条请求的最大 tool/模型迭代次数。")
+    parser.add_argument("--max-new-tokens", type=int, default=512, help="每步模型最大输出 token 数。")
+    parser.add_argument("--temperature", type=float, default=0.2, help="发给 Ollama 的采样 temperature。")
+    parser.add_argument("--top-p", type=float, default=0.9, help="发给 Ollama 的 top-p。")
     parser.add_argument(
         "--hooks-config",
         default=None,
-        help="Path to hooks.yaml (default: <workspace>/.mini-coding-agent/hooks.yaml).",
+        help="hooks.yaml 路径（默认：<workspace>/.mini-coding-agent/hooks.yaml）。",
     )
     parser.add_argument(
         "--no-trace-display",
         action="store_true",
-        help="Disable per-tool terminal trace lines (overrides hooks.yaml).",
+        help="关闭终端逐步 trace 行（覆盖 hooks.yaml）。",
     )
     parser.add_argument(
         "--no-session-trace",
         action="store_true",
-        help="Disable session tool_trace JSON (overrides hooks.yaml).",
+        help="关闭 session 内 tool_trace JSON（覆盖 hooks.yaml）。",
     )
     parser.add_argument(
         "--no-shell-audit",
         action="store_true",
-        help="Disable run_shell pattern audit hook (overrides hooks.yaml).",
+        help="关闭 run_shell 模式审计 Hook（覆盖 hooks.yaml）。",
+    )
+    # Phase 3: 强制「先规划再动手」；门控在 agent._execute_tool_after_validation（不替代 --approval）
+    parser.add_argument(
+        "--plan-first",
+        action="store_true",
+        help="每条 ask() 须先成功 make_plan，再允许 write_file、patch_file、run_shell。",
     )
     return parser
 
@@ -198,7 +206,7 @@ def main(argv=None):
             continue
         if user_input == "/reset":
             agent.reset()
-            print("session reset")
+            print("会话已重置")
             continue
 
         print()

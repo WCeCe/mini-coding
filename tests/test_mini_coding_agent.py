@@ -12,6 +12,7 @@ from mini_coding_agent import (
     build_welcome,
 )
 from mini_coding_agent.hooks.hook_config import HookConfig, load_hook_config
+from mini_coding_agent.planning import PLAN_MAX_STEPS, parse_plan_response, validate_plan
 
 
 def build_workspace(tmp_path):
@@ -62,7 +63,7 @@ def test_agent_retries_after_empty_model_output(tmp_path):
 
     assert answer == "Recovered after retry."
     notices = [item["content"] for item in agent.session["history"] if item["role"] == "assistant"]
-    assert any("empty response" in item for item in notices)
+    assert any("空响应" in item for item in notices)
 
 
 def test_agent_retries_after_malformed_tool_payload(tmp_path):
@@ -81,7 +82,7 @@ def test_agent_retries_after_malformed_tool_payload(tmp_path):
     assert answer == "Recovered after malformed tool output."
     assert any(item["role"] == "tool" and item["name"] == "read_file" for item in agent.session["history"])
     notices = [item["content"] for item in agent.session["history"] if item["role"] == "assistant"]
-    assert any("valid <tool> call" in item for item in notices)
+    assert any("有效的 <tool>" in item for item in notices)
 
 
 def test_agent_accepts_xml_write_file_tool(tmp_path):
@@ -146,7 +147,7 @@ def test_delegate_uses_child_agent(tmp_path):
     assert answer == "Parent incorporated the child result."
     tool_events = [item for item in agent.session["history"] if item["role"] == "tool"]
     assert tool_events[0]["name"] == "delegate"
-    assert "delegate_result" in tool_events[0]["content"]
+    assert "delegate 结果" in tool_events[0]["content"]
 
 
 def test_patch_file_replaces_exact_match(tmp_path):
@@ -163,7 +164,7 @@ def test_patch_file_replaces_exact_match(tmp_path):
         },
     )
 
-    assert result == "patched sample.txt"
+    assert result == "已修补 sample.txt"
     assert file_path.read_text(encoding="utf-8") == "hello agent\n"
 
 
@@ -173,8 +174,8 @@ def test_invalid_risky_tool_does_not_prompt_for_approval(tmp_path):
     with patch("builtins.input") as mock_input:
         result = agent.run_tool("write_file", {})
 
-    assert result.startswith("error: invalid arguments for write_file: 'path'")
-    assert 'example: <tool name="write_file"' in result
+    assert result.startswith("错误：write_file 参数无效：'path'")
+    assert '示例：<tool name="write_file"' in result
     mock_input.assert_not_called()
 
 
@@ -194,7 +195,7 @@ def test_list_files_hides_internal_agent_state(tmp_path):
 def test_path_rejects_parent_escape(tmp_path):
     agent = build_agent(tmp_path, [])
 
-    with pytest.raises(ValueError, match="path escapes workspace"):
+    with pytest.raises(ValueError, match="路径超出工作区"):
         agent.path("../outside.txt")
 
 
@@ -208,7 +209,7 @@ def test_path_rejects_symlink_escape(tmp_path):
     except (OSError, NotImplementedError):
         pytest.skip("symlink creation is not available in this environment")
 
-    with pytest.raises(ValueError, match="path escapes workspace"):
+    with pytest.raises(ValueError, match="路径超出工作区"):
         agent.path("outside-link/secret.txt")
 
 
@@ -233,7 +234,7 @@ def test_repeated_identical_tool_call_is_rejected(tmp_path):
 
     result = agent.run_tool("list_files", {})
 
-    assert result == "error: repeated identical tool call for list_files; choose a different tool or return a final answer"
+    assert result == "错误：连续两次相同调用 list_files；请换用其他工具或返回 <final>"
 
 
 def test_welcome_screen_keeps_box_shape_for_long_paths(tmp_path):
@@ -292,7 +293,7 @@ def test_prompt_top_level_sections_stay_flush_left_with_multiline_content(tmp_pa
     prompt = agent.prompt("is this issue legit?")
     lines = prompt.splitlines()
 
-    for label in ["Rules:", "Tools:", "Valid response examples:", "Workspace:", "Memory:", "Transcript:", "Current user request:"]:
+    for label in ["规则：", "工具：", "有效响应示例：", "工作区：", "记忆：", "对话记录：", "当前用户请求："]:
         assert label in lines
         assert f"            {label}" not in prompt
 
@@ -420,7 +421,7 @@ def test_write_file_records_diff_metadata(tmp_path):
 
     result = agent.run_tool("write_file", {"path": "new.py", "content": "x = 1\n"})
 
-    assert result == "wrote new.py (6 chars)"
+    assert result == "已写入 new.py（6 字符）"
     assert (tmp_path / "new.py").read_text(encoding="utf-8") == "x = 1\n"
     assert agent._last_tool_meta["checkpoint_id"].startswith("cp-")
     assert "diff_summary" in agent._last_tool_meta
@@ -513,8 +514,8 @@ def test_approve_shows_diff_not_raw_json(tmp_path, capsys):
         )
 
     captured = capsys.readouterr().out
-    assert "--- change preview:" in captured
-    assert "--- end diff ---" in captured
+    assert "--- 变更预览：" in captured
+    assert "--- 变更预览结束 ---" in captured
     assert "-alpha" in captured or "+beta" in captured
     assert '"old_text"' not in captured
 
@@ -545,8 +546,8 @@ def test_run_shell_approval_unchanged(tmp_path):
 
     assert result == "错误：run_shell 审批被拒绝"
     prompt = mock_input.call_args.args[0]
-    assert "approve run_shell" in prompt
-    assert "change preview" not in prompt
+    assert "批准 run_shell" in prompt
+    assert "变更预览" not in prompt
 
 
 def test_trace_hook_records_successful_tool(tmp_path):
@@ -665,7 +666,7 @@ def test_trace_display_prints_stderr_line(tmp_path, capsys):
     agent.run_tool("read_file", {"path": "hello.txt", "start": 1, "end": 1})
 
     captured = capsys.readouterr()
-    assert "#1 read_file ok" in captured.err
+    assert "#1 read_file 成功" in captured.err
     assert "ms" in captured.err
 
 
@@ -698,7 +699,7 @@ def test_shell_audit_warns_and_records_without_blocking(tmp_path, capsys):
 
     assert "exit_code: 0" in result
     captured = capsys.readouterr()
-    assert "SHELL AUDIT" in captured.err
+    assert "shell 审计" in captured.err
     assert "rm -rf" in captured.err
     assert len(agent.session["shell_audit"]) == 1
     assert agent.session["shell_audit"][0]["pattern"] == "rm -rf"
@@ -734,7 +735,7 @@ def test_yaml_malformed_fail_open(tmp_path):
     config, warnings = load_hook_config(hooks_path)
 
     assert config.session_trace is True
-    assert any("unreadable" in item for item in warnings)
+    assert any("无法读取" in item for item in warnings)
 
 
 def test_yaml_disables_trace_display(tmp_path, capsys):
@@ -768,3 +769,144 @@ def test_cli_overrides_yaml_trace_display(tmp_path, capsys):
 
     captured = capsys.readouterr()
     assert "#1 list_files" not in captured.err
+
+
+def _sample_plan(goal="ship feature"):
+    return {
+        "goal": goal,
+        "steps": [
+            {
+                "id": "1",
+                "title": "Survey codebase",
+                "acceptance": "Key files identified",
+                "risky_hint": "read_file",
+            },
+            {
+                "id": "2",
+                "title": "Implement change",
+                "acceptance": "Tests pass",
+                "risky_hint": "write_file",
+            },
+        ],
+        "assumptions": ["Python project"],
+        "out_of_scope": ["benchmark"],
+    }
+
+
+def test_make_plan_stores_structured_plan(tmp_path):
+    plan_payload = json.dumps(_sample_plan("add logging"))
+    agent = build_agent(tmp_path, [plan_payload])
+
+    result = agent.run_tool("make_plan", {"goal": "add logging", "context": "read src first"})
+
+    assert result.startswith("规划成功")
+    assert "<plan_json>" in result
+    assert agent.session["memory"]["plan"]["goal"] == "add logging"
+    assert len(agent.session["memory"]["plan"]["steps"]) == 2
+    assert agent.model_client.prompts[-1].startswith("你是 Mini-Coding-Agent 的任务规划助手")
+
+
+def test_make_plan_rejects_empty_goal(tmp_path):
+    agent = build_agent(tmp_path, [])
+
+    result = agent.run_tool("make_plan", {"goal": "  "})
+
+    assert "错误：" in result
+    assert agent.session["memory"].get("plan") is None
+
+
+def test_make_plan_invalid_json_does_not_update_memory(tmp_path):
+    agent = build_agent(tmp_path, ["not json at all"])
+    agent.session["memory"]["plan"] = {"goal": "old", "steps": [], "assumptions": [], "out_of_scope": []}
+
+    result = agent.run_tool("make_plan", {"goal": "new goal"})
+
+    assert "错误：make_plan 失败" in result
+    assert agent.session["memory"]["plan"]["goal"] == "old"
+
+
+def test_memory_text_includes_plan_summary(tmp_path):
+    agent = build_agent(tmp_path, [json.dumps(_sample_plan())])
+    agent.run_tool("make_plan", {"goal": "ship feature"})
+
+    memory = agent.memory_text()
+
+    assert "- plan:" in memory
+    assert "ship feature" in memory
+    assert "[1] Survey codebase" in memory
+
+
+def test_plan_first_blocks_risky_tool_until_make_plan(tmp_path):
+    agent = build_agent(tmp_path, [json.dumps(_sample_plan())], plan_first=True, approval_policy="auto")
+
+    blocked = agent.run_tool("write_file", {"path": "blocked.py", "content": "x\n"})
+    assert "make_plan" in blocked
+    assert "--plan-first" in blocked
+    assert not (tmp_path / "blocked.py").exists()
+
+    agent.run_tool("make_plan", {"goal": "write blocked.py"})
+    allowed = agent.run_tool("write_file", {"path": "blocked.py", "content": "x\n"})
+    assert "已写入 blocked.py" in allowed
+    assert (tmp_path / "blocked.py").exists()
+
+
+def test_plan_first_off_allows_risky_without_plan(tmp_path):
+    agent = build_agent(tmp_path, [], plan_first=False, approval_policy="auto")
+
+    result = agent.run_tool("write_file", {"path": "free.py", "content": "ok\n"})
+
+    assert "已写入 free.py" in result
+
+
+def test_ask_plan_first_enforces_plan_before_write(tmp_path):
+    plan_payload = json.dumps(_sample_plan("create hello.py"))
+    agent = build_agent(
+        tmp_path,
+        [
+            '<tool name="write_file" path="hello.py"><content>print("early")\n</content></tool>',
+            '<tool>{"name":"make_plan","args":{"goal":"create hello.py"}}</tool>',
+            plan_payload,
+            '<tool name="write_file" path="hello.py"><content>print("ok")\n</content></tool>',
+            "<final>Done.</final>",
+        ],
+        plan_first=True,
+        approval_policy="auto",
+    )
+
+    answer = agent.ask("Create hello.py with plan-first")
+
+    assert answer == "Done."
+    assert (tmp_path / "hello.py").read_text(encoding="utf-8") == 'print("ok")\n'
+    tool_contents = [item["content"] for item in agent.session["history"] if item["role"] == "tool"]
+    assert any("make_plan" in item and "--plan-first" in item for item in tool_contents)
+
+
+def test_parse_plan_response_accepts_fenced_json():
+    raw = 'Here is the plan:\n```json\n' + json.dumps(_sample_plan()) + "\n```"
+    plan = parse_plan_response(raw)
+    assert plan["goal"] == "ship feature"
+
+
+def test_validate_plan_rejects_too_many_steps():
+    steps = [
+        {"id": str(i), "title": f"step {i}", "acceptance": "done"}
+        for i in range(1, PLAN_MAX_STEPS + 2)
+    ]
+    plan = {"goal": "big", "steps": steps, "assumptions": [], "out_of_scope": []}
+    with pytest.raises(ValueError, match="步骤过多"):
+        validate_plan(plan)
+
+
+def test_child_agent_has_make_plan_at_delegate_depth(tmp_path):
+    """子 Agent（read_only, depth=1）仍有 make_plan；无 delegate（与 depth 策略一致）。"""
+    child = MiniAgent(
+        model_client=FakeModelClient([]),
+        workspace=build_workspace(tmp_path),
+        session_store=SessionStore(tmp_path / ".mini-coding-agent" / "sessions"),
+        depth=1,
+        max_depth=1,
+        read_only=True,
+        enable_trace_hook=False,
+    )
+    assert "make_plan" in child.tools
+    assert "delegate" not in child.tools

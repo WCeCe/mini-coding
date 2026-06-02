@@ -15,6 +15,7 @@ It is a minimal local agent loop with:
 - **change governance** for file writes (diff preview, checkpoint, rollback)
 - **tool-boundary hooks** for observability and extension (`pre_tool` / `post_tool`)
 - **terminal tool trace**, shell audit alerts, and **YAML-configured built-in hooks** (Phase 2.1)
+- **task planning** with structured `make_plan` and optional `--plan-first` (Phase 3)
 - transcript and memory persistence
 - bounded delegation
 
@@ -388,6 +389,92 @@ All hook implementations live under `mini_coding_agent/hooks/`. Add new hooks in
 - **Terminal trace goes to stderr.** Redirect or disable with `--no-trace-display` / YAML if you need a quiet pipeline.
 
 &nbsp;
+## Task Planning (Phase 3)
+
+For complex work, the agent can produce a **task-level plan** (steps with acceptance criteria) before changing files or running shell commands. Planning uses a separate single model call inside the `make_plan` tool — it does not auto-run steps for you.
+
+### `make_plan` vs `delegate`
+
+- **`delegate`** — spawns a bounded **read-only** sub-agent to investigate (multi-step tools).
+- **`make_plan`** — one structured planning call that returns a JSON plan (no internal tool loop).
+
+Use investigation tools when you need facts; use `make_plan` when you need a checklist to execute against.
+
+### When to plan
+
+By default the model decides when to plan (prompt rules encourage planning for multi-file changes, vague requests, or when you ask for a plan). You can also force planning for every user request with `--plan-first` (see below).
+
+### Tool: `make_plan`
+
+| Item | Detail |
+|------|--------|
+| Risk | **Safe** — no approval prompt; does not write files or run shell |
+| Parameters | `goal` (required), `context` (optional string, e.g. findings from `read_file` / `search`) |
+| Call format | `<tool>{"name":"make_plan","args":{"goal":"add unit tests","context":"read src/foo.py first"}}</tool>` |
+
+On success the tool returns **`规划成功`**, a short summary, and a `<plan_json>...</plan_json>` block. The parsed plan is stored in session memory.
+
+**Plan JSON shape (summary):**
+
+```json
+{
+  "goal": "string",
+  "steps": [
+    { "id": "1", "title": "...", "acceptance": "...", "risky_hint": "optional" }
+  ],
+  "assumptions": ["..."],
+  "out_of_scope": ["..."]
+}
+```
+
+At most **12** steps. Invalid JSON or missing fields produce a clear tool error; **`memory.plan` is not updated** on failure.
+
+### Plan in session memory
+
+Successful plans are saved under:
+
+```text
+.mini-coding-agent/sessions/<session-id>.json  →  memory.plan
+```
+
+The plan is also injected into the agent prompt via working memory (`memory_text()`). In the REPL, run **`/memory`** to see the current task, **plan summary** (goal and step titles), tracked files, and recent notes.
+
+`/reset` clears the plan along with history and other memory fields.
+
+Plans are **not** written to a separate file on disk in this release.
+
+### `--plan-first`
+
+When this flag is set, each **`ask()`** (one user message in REPL or one-shot CLI) must call **`make_plan` successfully** before the first **risky** tool in that same turn: `write_file`, `patch_file`, or `run_shell`.
+
+If the model tries a risky tool first, the runtime returns an error asking it to call `make_plan` first. Approval and change governance are unchanged — `--plan-first` only adds this ordering gate.
+
+Without `--plan-first`, behavior matches Phase 2: planning is optional.
+
+Example (one-shot):
+
+```bash
+uv run mini-coding-agent --plan-first --approval ask "Refactor auth helpers and add pytest coverage"
+```
+
+Example (REPL):
+
+```bash
+uv run mini-coding-agent --plan-first
+```
+
+Then type your task at the `mini-coding-agent>` prompt.
+
+**Note:** satisfaction resets at the start of each new user message. Resuming a session does not skip planning on the next turn unless you omit `--plan-first`.
+
+### Known limitations (Phase 3)
+
+- **No automatic step execution.** The agent is not dispatched step-by-step from the plan; it follows memory and its own tool choices.
+- **No step completion tracking.** There is no built-in “mark step done” state machine.
+- **Plan quality depends on the model** and the planning prompt; there is no benchmark scoring in this release.
+- **`--plan-first` is per user message**, not once per session.
+
+&nbsp;
 ## Sessions and Resume
 
 The agent saves sessions under the target workspace root in:
@@ -419,7 +506,7 @@ being sent to the model as a normal task.
 - `/help`
   shows the list of available interactive commands
 - `/memory`
-  prints the distilled session memory, including the current task, tracked files, and notes
+  prints the distilled session memory, including the current task, **plan summary** (if any), tracked files, and notes
 - `/session`
   prints the path to the current saved session JSON file
 - `/reset`
@@ -475,6 +562,8 @@ Important flags:
   disable session `tool_trace` JSON (overrides `hooks.yaml`)
 - `--no-shell-audit`
   disable shell pattern audit hook (overrides `hooks.yaml`)
+- `--plan-first`
+  require a successful `make_plan` in each user request before the first risky tool (`write_file`, `patch_file`, `run_shell`); default: off
 
 &nbsp;
 ## Example

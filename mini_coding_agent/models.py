@@ -12,7 +12,7 @@ class FakeModelClient:
     def complete(self, prompt, max_new_tokens):
         self.prompts.append(prompt)
         if not self.outputs:
-            raise RuntimeError("fake model ran out of outputs")
+            raise RuntimeError("假模型已无预设输出")
         return self.outputs.pop(0)
 
 
@@ -49,15 +49,15 @@ class OllamaModelClient:
                 data = json.loads(response.read().decode("utf-8"))
         except urllib.error.HTTPError as exc:
             body = exc.read().decode("utf-8", errors="replace")
-            raise RuntimeError(f"Ollama request failed with HTTP {exc.code}: {body}") from exc
+            raise RuntimeError(f"Ollama 请求失败，HTTP {exc.code}：{body}") from exc
         except urllib.error.URLError as exc:
             raise RuntimeError(
-                "Could not reach Ollama.\n"
-                "Make sure `ollama serve` is running and the model is available.\n"
+                "无法连接 Ollama。\n"
+                "请确认已运行 `ollama serve` 且模型可用。\n"
                 f"Host: {self.host}\n"
                 f"Model: {self.model}"
             ) from exc
 
         if data.get("error"):
-            raise RuntimeError(f"Ollama error: {data['error']}")
+            raise RuntimeError(f"Ollama 错误：{data['error']}")
         return data.get("response", "")

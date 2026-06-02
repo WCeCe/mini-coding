@@ -57,6 +57,7 @@ while tool_steps < max_steps and attempts < max_attempts:
 | `write_file` | **是** | 直接覆盖写 |
 | `patch_file` | **是** | `old_text` 唯一匹配 |
 | `delegate` | 否 | 子 Agent；`depth < max_depth` 才注册 |
+| `make_plan` | 否 | 单次规划调用；结构化任务拆分；写入 `memory.plan` |
 
 ### 审批 `approval_policy`
 
@@ -99,6 +100,29 @@ run_tool → validate → repeated_tool_call
 ```
 
 **路径沙箱：** `path()` → `resolve()` → `path_is_within_root(repo_root)`
+
+---
+
+## 8. Phase 3 改造热点（首项）
+
+**规划工具链：**
+
+```
+make_plan → build_planning_prompt → model.complete（单次）
+  → parse_plan_response → memory.plan → memory_text() 进入 prompt
+```
+
+**`--plan-first` 门控（在 approve / 治理之前）：**
+
+```
+run_tool → validate → _execute_tool_after_validation
+  → 若 plan_first 且 risky 且非 _ask_plan_satisfied → 返回错误
+  → 否则 write/patch → 治理；run_shell → approve
+```
+
+**与 delegate：** `planning.py` 独立模块；`make_plan` 全 depth 可用；`delegate` 仅 `depth < max_depth`。
+
+详见 [`phase3.md`](./phase3.md) · [`PHASE3-WALKTHROUGH-zh.md`](../PHASE3-WALKTHROUGH-zh.md)
 
 ---
 

@@ -33,7 +33,7 @@ class ShellAuditHook:
                 continue
             preview = middle(command, 80)
             print(
-                f"[mini-agent] SHELL AUDIT: matched '{pattern_str}' — cmd: {preview}",
+                f"[mini-agent] shell 审计：匹配模式 '{pattern_str}' — 命令：{preview}",
                 file=sys.stderr,
             )
             entry = {

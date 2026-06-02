@@ -39,13 +39,13 @@ def load_hook_config(path: Path) -> tuple[HookConfig, list[str]]:
     try:
         raw = yaml.safe_load(path.read_text(encoding="utf-8"))
     except Exception as exc:
-        warnings.append(f"hooks.yaml unreadable ({path}): {exc}; using defaults")
+        warnings.append(f"hooks.yaml 无法读取（{path}）：{exc}；使用默认配置")
         return default_hook_config(), warnings
 
     if raw is None:
         return default_hook_config(), warnings
     if not isinstance(raw, dict):
-        warnings.append("hooks.yaml root must be a mapping; using defaults")
+        warnings.append("hooks.yaml 根节点必须是映射；使用默认配置")
         return default_hook_config(), warnings
 
     config = default_hook_config()
@@ -55,7 +55,7 @@ def load_hook_config(path: Path) -> tuple[HookConfig, list[str]]:
     if builtin is None:
         builtin = {}
     elif not isinstance(builtin, dict):
-        warnings.append("builtin_hooks must be a mapping; ignoring section")
+        warnings.append("builtin_hooks 必须是映射；忽略该节")
         builtin = {}
 
     for yaml_key, attr in (
@@ -67,7 +67,7 @@ def load_hook_config(path: Path) -> tuple[HookConfig, list[str]]:
         if value is None:
             continue
         if not isinstance(value, bool):
-            warnings.append(f"builtin_hooks.{yaml_key} must be bool; using default")
+            warnings.append(f"builtin_hooks.{yaml_key} 必须是布尔值；使用默认值")
             continue
         setattr(config, attr, value)
 
@@ -75,14 +75,14 @@ def load_hook_config(path: Path) -> tuple[HookConfig, list[str]]:
     if shell_section is None:
         return config, warnings
     if not isinstance(shell_section, dict):
-        warnings.append("shell_audit must be a mapping; ignoring section")
+        warnings.append("shell_audit 必须是映射；忽略该节")
         return config, warnings
 
     patterns = shell_section.get("warn_patterns")
     if patterns is None:
         return config, warnings
     if not isinstance(patterns, list) or not all(isinstance(item, str) for item in patterns):
-        warnings.append("shell_audit.warn_patterns must be a list of strings; using defaults")
+        warnings.append("shell_audit.warn_patterns 必须是字符串列表；使用默认模式")
         return config, warnings
 
     config.shell_warn_patterns = patterns
@@ -102,4 +102,4 @@ def apply_cli_overrides(config: HookConfig, args) -> HookConfig:
 
 def emit_config_warnings(warnings: list[str]) -> None:
     for message in warnings:
-        print(f"[mini-agent] hooks config: {message}", file=sys.stderr)
+        print(f"[mini-agent] hooks 配置：{message}", file=sys.stderr)

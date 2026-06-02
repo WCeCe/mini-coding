@@ -42,7 +42,7 @@ class HookRegistry:
         elif event == "post_tool":
             self._post.append(handler)
         else:
-            raise ValueError(f"unknown hook event: {event}")
+            raise ValueError(f"未知的 hook 事件：{event}")
 
     # 记录时间，并执行回调
     def emit_pre(self, ctx: ToolHookContext):

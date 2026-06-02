@@ -7,6 +7,12 @@ from datetime import datetime
 from pathlib import Path
 
 from mini_coding_agent.constants import IGNORED_PATH_NAMES, MAX_HISTORY
+from mini_coding_agent.planning import (
+    build_planning_prompt,
+    format_plan_tool_result,
+    parse_plan_response,
+    plan_summary_text,
+)
 from mini_coding_agent.hooks.hook_config import default_hook_config, emit_config_warnings, load_hook_config
 from mini_coding_agent.hooks import HookRegistry, ToolHookContext, register_builtin_hooks
 from mini_coding_agent.session import CheckpointStore
@@ -38,6 +44,8 @@ class MiniAgent:
         read_only=False,
         enable_trace_hook=True,
         hook_config=None,
+        # Phase 3: CLI --plan-first；是否需要先plan
+        plan_first=False,
     ):
         self.model_client = model_client
         self.workspace = workspace
@@ -49,7 +57,11 @@ class MiniAgent:
         self.depth = depth
         self.max_depth = max_depth
         self.read_only = read_only
-        # Phase 2/2.1: 工具边界 Hook 注册表；YAML + 内置 Hook 栈
+        self.plan_first = plan_first
+        # 首先要是在--plan_first的命令前提下，如果_ask_plan_satisfied为false，就禁止使用写等危险操作
+        #只能读或者是执行plan，在plan后会将其改为true，此时就允许危险操作了。
+        self._ask_plan_satisfied = False
+        # Phase 2: 工具边界 Hook 注册表；YAML + 内置 Hook 栈
         self.hook_registry = HookRegistry()
         if enable_trace_hook:
             if hook_config is None:
@@ -77,7 +89,8 @@ class MiniAgent:
             #简短的记录任务、文件、备注
             #files只存文件相关的操作tool
             #notes是最近所有操作，包括final的结果
-            "memory": {"task": "", "files": [], "notes": []},
+            # plan: Phase 3 成功的make_plan 的结构化 JSON（dict 或 None）
+            "memory": {"task": "", "files": [], "notes": [], "plan": None},
         }
         #构建tools
         self.tools = self.build_tools()
@@ -120,43 +133,51 @@ class MiniAgent:
             "list_files": {
                 "schema": {"path": "str='.'"},
                 "risky": False,
-                "description": "List files in the workspace.",
+                "description": "列出工作区中的文件与目录。",
                 "run": self.tool_list_files,
             },
             #有大小限制
             "read_file": {
                 "schema": {"path": "str", "start": "int=1", "end": "int=200"},
                 "risky": False,
-                "description": "Read a UTF-8 file by line range.",
+                "description": "按行范围读取 UTF-8 文本文件。",
                 "run": self.tool_read_file,
             },
             #pattern要在代码/文件里查找的文字
             "search": {
                 "schema": {"pattern": "str", "path": "str='.'"},
                 "risky": False,
-                "description": "Search the workspace with rg or a simple fallback.",
+                "description": "在工作区中搜索（优先 rg，否则简单回退）。",
                 "run": self.tool_search,
             },
             #command要执行的命令
             "run_shell": {
                 "schema": {"command": "str", "timeout": "int=20"},
                 "risky": True,
-                "description": "Run a shell command in the repo root.",
+                "description": "在仓库根目录执行 shell 命令。",
                 "run": self.tool_run_shell,
             },
             #content要写入的文本内容
             "write_file": {
                 "schema": {"path": "str", "content": "str"},
                 "risky": True,
-                "description": "Write a text file.",
+                "description": "写入文本文件。",
                 "run": self.tool_write_file,
             },
             #精确文本替换，old_text源文本中要被替换的那一段，new_text要替换的
             "patch_file": {
                 "schema": {"path": "str", "old_text": "str", "new_text": "str"},
                 "risky": True,
-                "description": "Replace one exact text block in a file.",
+                "description": "在文件中精确替换一段文本。",
                 "run": self.tool_patch_file,
+            },
+            # Phase 3: 单次 complete 产出任务级计划（无内部 tool 循环）；全 depth 注册
+            # 与 delegate 区别：delegate=子 Agent 多步只读调查，仅 depth<max_depth；make_plan=本层一次规划
+            "make_plan": {
+                "schema": {"goal": "str", "context": "str=''"},
+                "risky": False,
+                "description": "生成结构化任务级计划（单次 make_plan 调用，无内部 tool 循环）。",
+                "run": self.tool_make_plan,
             },
         }
         #max_depth为1，只允许调用一层子Agent，子Agent不能继续往下调用；且子Agent只读
@@ -164,7 +185,7 @@ class MiniAgent:
             tools["delegate"] = {
                 "schema": {"task": "str", "max_steps": "int=3"},
                 "risky": False,
-                "description": "Ask a bounded read-only child agent to investigate.",
+                "description": "调用有界只读子 Agent 进行调查。",
                 "run": self.tool_delegate,
             }
         return tools
@@ -179,7 +200,7 @@ class MiniAgent:
             #获取工具的参数path、start啥的
             fields = ", ".join(f"{key}: {value}" for key, value in tool["schema"].items())
             #获取风险
-            risk = "approval required" if tool["risky"] else "safe"
+            risk = "需审批" if tool["risky"] else "安全"
             #写成这样的形式：tool_lines.append("- read_file(path: str, start: int=1, end: int=200) [safe] Read a UTF-8 file by line range.")
             tool_lines.append(f"- {name}({fields}) [{risk}] {tool['description']}")
         #1.工具列表
@@ -192,27 +213,30 @@ class MiniAgent:
                 '<tool name="write_file" path="binary_search.py"><content>def binary_search(nums, target):\n    return -1\n</content></tool>',
                 '<tool name="patch_file" path="binary_search.py"><old_text>return -1</old_text><new_text>return mid</new_text></tool>',
                 '<tool>{"name":"run_shell","args":{"command":"uv run --with pytest python -m pytest -q","timeout":20}}</tool>',
+                '<tool>{"name":"make_plan","args":{"goal":"add tests for module X","context":"read README first"}}</tool>',
                 "<final>Done.</final>",
             ]
         )
         #3.规则
         rules = "\n".join([
-            "- Use tools instead of guessing about the workspace.",
-            "- Return exactly one <tool>...</tool> or one <final>...</final>.",
-            "- Tool calls must look like:",
+            "- 不要猜测工作区内容，请使用工具获取事实。",
+            "- 每次只返回一个 <tool>...</tool> 或一个 <final>...</final>。",
+            "- tool 调用格式示例：",
             '  <tool>{"name":"tool_name","args":{...}}</tool>',
-            "- For write_file and patch_file with multi-line text, prefer XML style:",
+            "- write_file、patch_file 的多行内容优先使用 XML 格式：",
             '  <tool name="write_file" path="file.py"><content>...</content></tool>',
-            "- Final answers must look like:",
-            "  <final>your answer</final>",
-            "- Never invent tool results.",
-            "- Keep answers concise and concrete.",
-            "- If the user asks you to create or update a specific file and the path is clear, use write_file or patch_file instead of repeatedly listing files.",
-            "- Before writing tests for existing code, read the implementation first.",
-            "- When writing tests, match the current implementation unless the user explicitly asked you to change the code.",
-            "- New files should be complete and runnable, including obvious imports.",
-            "- Do not repeat the same tool call with the same arguments if it did not help. Choose a different tool or return a final answer.",
-            "- Required tool arguments must not be empty. Do not call read_file, write_file, patch_file, run_shell, or delegate with args={}.",
+            "- 最终回答格式：",
+            "  <final>你的回答</final>",
+            "- 不要编造工具执行结果。",
+            "- 回答简洁、具体。",
+            "- 用户要求创建或更新明确路径的文件时，用 write_file 或 patch_file，不要反复 list_files。",
+            "- 为现有代码写测试前，先 read_file 阅读实现。",
+            "- 写测试时匹配当前实现，除非用户明确要求改代码。",
+            "- 新建文件应完整可运行，包含必要 import。",
+            "- 同一参数重复调用无效工具时，换工具或返回 <final>。",
+            "- 必填工具参数不能为空。不得用空 args 调用 read_file、write_file、patch_file、run_shell、delegate、make_plan。",
+            "- 多文件改动、需求含糊或用户要求规划时：先用 read_file/search 调查，再 make_plan，再执行 risky 工具（write_file、patch_file、run_shell）。",
+            "- delegate = 有界只读子 Agent 调查；make_plan = 单次结构化任务拆分（不能替代 delegate）。",
         ])
         #构建prompt的prefix部分，prefix又分为五个部分：
         #1.You are Mini-Coding-Agent...
@@ -221,21 +245,29 @@ class MiniAgent:
         #4. 案例：Valid response examples: + examples
         #5. 仓库快照：workspace.text()（仓库快照）
         return "\n\n".join([
-            "You are Mini-Coding-Agent, a small local coding agent running through Ollama.",
-            "Rules:\n" + rules,
-            "Tools:\n" + tool_text,
-            "Valid response examples:\n" + examples,
+            "你是 Mini-Coding-Agent，通过 Ollama 运行的本地小型编程 Agent。",
+            "规则：\n" + rules,
+            "工具：\n" + tool_text,
+            "有效响应示例：\n" + examples,
             self.workspace.text(),
         ])
 
-    #构建memory
+    #构建memory（含 Phase 3 plan 摘要，会进入 prompt() 供模型对照执行）
     def memory_text(self):
         memory = self.session["memory"]
-        notes = "\n".join(f"- {note}" for note in memory["notes"]) or "- none"
+        notes = "\n".join(f"- {note}" for note in memory["notes"]) or "- 无"
+        plan = memory.get("plan")
+        if plan:
+            plan_lines = plan_summary_text(plan).splitlines()
+            plan_block = "\n".join(f"  {line}" for line in plan_lines)
+        else:
+            plan_block = "  - 无"
         return "\n".join([
-            "Memory:",
+            "记忆：",
             f"- task: {memory['task'] or '-'}",
             f"- files: {', '.join(memory['files']) or '-'}",
+            "- plan:",
+            plan_block,
             "- notes:",
             notes,
         ])
@@ -247,7 +279,7 @@ class MiniAgent:
     def history_text(self):
         history = self.session["history"]
         if not history:
-            return "- empty"
+            return "- （空）"
         #存储格式化后的历史文本行，用于最终拼接输出
         lines = []
         #只针对非最近（较旧）的 read_file 工具调用
@@ -293,8 +325,8 @@ class MiniAgent:
         return "\n\n".join([
             self.prefix,
             self.memory_text(),
-            "Transcript:\n" + self.history_text(),
-            "Current user request:\n" + user_message,
+            "对话记录：\n" + self.history_text(),
+            "当前用户请求：\n" + user_message,
         ])
 
     ###############################################
@@ -322,6 +354,9 @@ class MiniAgent:
     #ask方法，主要分为tool、retry、final三种
     #注意点，task是我开启这个Agent对话的第一句话，后面的每句话都不会更改这个task，只会更改user_message
     def ask(self, user_message):
+        # --plan-first：每条用户消息（一次 ask）开始时清零；仅当本轮（ask）内 tool_make_plan 成功可置 True
+        # 跨轮 resume 不继承 satisfied；session 里 memory.plan 仍可被后续轮 prompt 读到
+        self._ask_plan_satisfied = False
         memory = self.session["memory"]
         if not memory["task"]:
             #将用户输入的指令截断到300个字符
@@ -383,9 +418,9 @@ class MiniAgent:
             return final
 
         if attempts >= max_attempts and tool_steps < self.max_steps:
-            final = "Stopped after too many malformed model responses without a valid tool call or final answer."
+            final = "已停止：模型多次返回无效 tool 或 final，未得到有效结果。"
         else:
-            final = "Stopped after reaching the step limit without a final answer."
+            final = "已停止：达到步数上限仍未得到 final 回答。"
         self.record({"role": "assistant", "content": final, "created_at": now()})
         return final
 
@@ -402,15 +437,15 @@ class MiniAgent:
         # 从build好的tools中找到对应的
         tool = self.tools.get(name)
         if tool is None:
-            return f"error: unknown tool '{name}'"
+            return f"错误：未知工具 '{name}'"
         try:
             # 校验工具是否可用
             self.validate_tool(name, args)
         except Exception as exc:
             example = self.tool_example(name)
-            message = f"error: invalid arguments for {name}: {exc}"
+            message = f"错误：{name} 参数无效：{exc}"
             if example:
-                message += f"\nexample: {example}"
+                message += f"\n示例：{example}"
             return message
         # 校验是否连续使用工具，谨防死循环
         if self.repeated_tool_call(name, args):
@@ -419,8 +454,7 @@ class MiniAgent:
                 args,
                 tool,
                 lambda: (
-                    f"error: repeated identical tool call for {name}; "
-                    "choose a different tool or return a final answer"
+                    f"错误：连续两次相同调用 {name}；请换用其他工具或返回 <final>"
                 ),
             )
         # Phase 2: 校验通过后，经 Hook 包裹实际执行（含治理流程）
@@ -449,6 +483,13 @@ class MiniAgent:
         return result
 
     def _execute_tool_after_validation(self, name, args, tool):
+        # Phase 3: --plan-first 门控（在 validate 之后、approve/治理之前；仅拦截 write/patch/shell）
+        # 返回 error 字符串给主循环，不进入 _run_governed_file_tool / approve
+        if self.plan_first and tool.get("risky") and not self._ask_plan_satisfied:
+            return (
+                "错误：已启用 --plan-first，请先在本轮 ask 内成功调用 make_plan，"
+                f"再使用 risky 工具 '{name}'（write_file、patch_file、run_shell）"
+            )
         # 这里调用_run_governed_file_tool，也就是治理主流程，不走传统的write_file两个工具了
         if name in {"write_file", "patch_file"}:
             return self._run_governed_file_tool(name, args)
@@ -461,7 +502,7 @@ class MiniAgent:
             # clip是指对得到的文本超过4k就进行截断
             return clip(tool["run"](args))
         except Exception as exc:
-            return f"error: tool {name} failed: {exc}"
+            return f"错误：工具 {name} 执行失败：{exc}"
 
     #校验是否已经使用该工具两次了，防止最近、连续（重点）使用三次该工具，如果最近三次一直都使用该工具，有很大概率卡死了。
     def repeated_tool_call(self, name, args):
@@ -483,6 +524,7 @@ class MiniAgent:
             "write_file": '<tool name="write_file" path="binary_search.py"><content>def binary_search(nums, target):\n    return -1\n</content></tool>',
             "patch_file": '<tool name="patch_file" path="binary_search.py"><old_text>return -1</old_text><new_text>return mid</new_text></tool>',
             "delegate": '<tool>{"name":"delegate","args":{"task":"inspect README.md","max_steps":3}}</tool>',
+            "make_plan": '<tool>{"name":"make_plan","args":{"goal":"add unit tests","context":"scanned src/"}}</tool>',
         }
         return examples.get(name, "")
 
@@ -493,65 +535,72 @@ class MiniAgent:
         if name == "list_files":
             path = self.path(args.get("path", "."))
             if not path.is_dir():
-                raise ValueError("path is not a directory")
+                raise ValueError("path 不是目录")
             return
         #验证要读的文件是否能打开，并且验证start和end是否合法
         if name == "read_file":
             path = self.path(args["path"])
             if not path.is_file():
-                raise ValueError("path is not a file")
+                raise ValueError("path 不是文件")
             start = int(args.get("start", 1))
             end = int(args.get("end", 200))
             if start < 1 or end < start:
-                raise ValueError("invalid line range")
+                raise ValueError("行范围无效（start/end）")
             return
 
         if name == "search":
             pattern = str(args.get("pattern", "")).strip()
             if not pattern:
-                raise ValueError("pattern must not be empty")
+                raise ValueError("参数 pattern 不能为空")
             self.path(args.get("path", "."))
             return
 
         if name == "run_shell":
             command = str(args.get("command", "")).strip()
             if not command:
-                raise ValueError("command must not be empty")
+                raise ValueError("参数 command 不能为空")
             timeout = int(args.get("timeout", 20))
             if timeout < 1 or timeout > 120:
-                raise ValueError("timeout must be in [1, 120]")
+                raise ValueError("参数 timeout 须在 1–120 之间")
             return
 
         if name == "write_file":
             path = self.path(args["path"])
             if path.exists() and path.is_dir():
-                raise ValueError("path is a directory")
+                raise ValueError("path 是目录，不能写入")
             if "content" not in args:
-                raise ValueError("missing content")
+                raise ValueError("缺少参数 content")
             return
 
         if name == "patch_file":
             path = self.path(args["path"])
             if not path.is_file():
-                raise ValueError("path is not a file")
+                raise ValueError("path 不是文件")
             old_text = str(args.get("old_text", ""))
             if not old_text:
-                raise ValueError("old_text must not be empty")
+                raise ValueError("参数 old_text 不能为空")
             if "new_text" not in args:
-                raise ValueError("missing new_text")
+                raise ValueError("缺少参数 new_text")
             text = path.read_text(encoding="utf-8")
             #记录old_text在整个text中有几处，如果不为1，则报错，因为不知道精确位置
             count = text.count(old_text)
             if count != 1:
-                raise ValueError(f"old_text must occur exactly once, found {count}")
+                raise ValueError(f"参数 old_text 须恰好出现 1 次，实际出现 {count} 次")
             return
 
         if name == "delegate":
             if self.depth >= self.max_depth:
-                raise ValueError("delegate depth exceeded")
+                raise ValueError("delegate 调用深度超限")
             task = str(args.get("task", "")).strip()
             if not task:
-                raise ValueError("task must not be empty")
+                raise ValueError("参数 task 不能为空")
+            return
+
+        # Phase 3: make_plan 只校验 goal；context 可选，由 planning prompt 消费
+        if name == "make_plan":
+            goal = str(args.get("goal", "")).strip()
+            if not goal:
+                raise ValueError("参数 goal 不能为空")
             return
 
     # 处理写文件和patch文件的治理主流程
@@ -610,8 +659,8 @@ class MiniAgent:
             return f"错误：工具 {name} 执行失败：{exc}; {rollback}"
 
         if name == "write_file":
-            return f"wrote {rel_path} ({len(proposed)} chars)"
-        return f"patched {rel_path}"
+            return f"已写入 {rel_path}（{len(proposed)} 字符）"
+        return f"已修补 {rel_path}"
 
     #如果是write_file，直接返回要写的内容，如果不是，那么就是patch_file，则替换旧内容为新内容，返回全部的text文本
     def _proposed_file_content(self, name, args, before):
@@ -648,16 +697,16 @@ class MiniAgent:
         try:
             if diff is not None:
                 rel_path = str(args.get("path", ""))
-                print(f"--- change preview: {name} {rel_path} ---")
+                print(f"--- 变更预览：{name} {rel_path} ---")
                 print(diff)
-                print("--- end diff ---")
+                print("--- 变更预览结束 ---")
             if git_warning:
                 print(git_warning)
             if diff is not None:
-                answer = input("approve this change? [y/n] ")
+                answer = input("批准此次变更？[y/n] ")
             #因为diff是空，则有可能是其他risky工具，所以需要询问用户是否批准
             else:
-                answer = input(f"approve {name} {json.dumps(args, ensure_ascii=True)}? [y/n] ")
+                answer = input(f"批准 {name} {json.dumps(args, ensure_ascii=True)}？[y/n] ")
         except EOFError:
             return False
         return answer.strip().lower() in {"y", "yes"}
@@ -675,12 +724,12 @@ class MiniAgent:
                 payload = json.loads(body)
             except Exception:
                 #如果解析失败，返回一个提示模型重试的消息(模型返回了错误格式的json)
-                return "retry", MiniAgent.retry_notice("model returned malformed tool JSON")
+                return "retry", MiniAgent.retry_notice("模型返回的 tool JSON 格式错误")
             if not isinstance(payload, dict):
                 #需要是json格式
-                return "retry", MiniAgent.retry_notice("tool payload must be a JSON object")
+                return "retry", MiniAgent.retry_notice("tool 载荷必须是 JSON 对象")
             if not str(payload.get("name", "")).strip():
-                return "retry", MiniAgent.retry_notice("tool payload is missing a tool name")
+                return "retry", MiniAgent.retry_notice("tool 载荷缺少工具名 name")
             #获取args
             args = payload.get("args", {})
             if args is None:
@@ -699,24 +748,24 @@ class MiniAgent:
             final = MiniAgent.extract(raw, "final").strip()
             if final:
                 return "final", final
-            return "retry", MiniAgent.retry_notice("model returned an empty <final> answer")
+            return "retry", MiniAgent.retry_notice("模型返回了空的 <final> 回答")
         raw = raw.strip()
         #兜底，前面都没进入的话，说明模型返回的纯文本，没有tool、final，因此返回该文本
         if raw:
             return "final", raw
-        return "retry", MiniAgent.retry_notice("model returned an empty response")
+        return "retry", MiniAgent.retry_notice("模型返回了空响应")
 
     #（属于parse）用于生成一个提示模型重试的标准化错误消息
     @staticmethod
     def retry_notice(problem=None):
-        prefix = "Runtime notice"
+        prefix = "运行时提示"
         if problem:
-            prefix += f": {problem}"
+            prefix += f"：{problem}"
         else:
-            prefix += ": model returned malformed tool output"
+            prefix += "：模型返回了格式错误的 tool 输出"
         return (
-            f"{prefix}. Reply with a valid <tool> call or a non-empty <final> answer. "
-            'For multi-line files, prefer <tool name="write_file" path="file.py"><content>...</content></tool>.'
+            f"{prefix}。请使用有效的 <tool> 调用或非空的 <final> 回答。"
+            '多行文件请优先使用 <tool name="write_file" path="file.py"><content>...</content></tool>。'
         )
 
     #（属于parse）解析XML格式的tool，返回想要使用的工具名称和参数（字典）
@@ -787,8 +836,8 @@ class MiniAgent:
     def reset(self):
         #清空历史记录
         self.session["history"] = []
-        #清空记忆
-        self.session["memory"] = {"task": "", "files": [], "notes": []}
+        #清空记忆（含 Phase 3 memory.plan）
+        self.session["memory"] = {"task": "", "files": [], "notes": [], "plan": None}
         #保存会话
         self.session_store.save(self.session)
 
@@ -809,14 +858,14 @@ class MiniAgent:
         path = path if path.is_absolute() else self.root / path
         resolved = path.resolve()
         if not self.path_is_within_root(resolved):
-            raise ValueError(f"path escapes workspace: {raw_path}")
+            raise ValueError(f"路径超出工作区：{raw_path}")
         return resolved
 
     # 具体的工具实现
     def tool_list_files(self, args):
         path = self.path(args.get("path", "."))
         if not path.is_dir():
-            raise ValueError("path is not a directory")
+            raise ValueError("path 不是目录")
         entries = [
             item for item in sorted(path.iterdir(), key=lambda item: (item.is_file(), item.name.lower()))
             if item.name not in IGNORED_PATH_NAMES
@@ -825,16 +874,16 @@ class MiniAgent:
         for entry in entries[:200]:
             kind = "[D]" if entry.is_dir() else "[F]"
             lines.append(f"{kind} {entry.relative_to(self.root)}")
-        return "\n".join(lines) or "(empty)"
+        return "\n".join(lines) or "（空）"
 
     def tool_read_file(self, args):
         path = self.path(args["path"])
         if not path.is_file():
-            raise ValueError("path is not a file")
+            raise ValueError("path 不是文件")
         start = int(args.get("start", 1))
         end = int(args.get("end", 200))
         if start < 1 or end < start:
-            raise ValueError("invalid line range")
+            raise ValueError("行范围无效（start/end）")
         lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
         body = "\n".join(f"{number:>4}: {line}" for number, line in enumerate(lines[start - 1:end], start=start))
         return f"# {path.relative_to(self.root)}\n{body}"
@@ -842,7 +891,7 @@ class MiniAgent:
     def tool_search(self, args):
         pattern = str(args.get("pattern", "")).strip()
         if not pattern:
-            raise ValueError("pattern must not be empty")
+            raise ValueError("参数 pattern 不能为空")
         path = self.path(args.get("path", "."))
 
         if shutil.which("rg"):
@@ -852,7 +901,7 @@ class MiniAgent:
                 capture_output=True,
                 text=True,
             )
-            return result.stdout.strip() or result.stderr.strip() or "(no matches)"
+            return result.stdout.strip() or result.stderr.strip() or "（无匹配）"
 
         matches = []
         files = [path] if path.is_file() else [
@@ -865,15 +914,15 @@ class MiniAgent:
                     matches.append(f"{file_path.relative_to(self.root)}:{number}:{line}")
                     if len(matches) >= 200:
                         return "\n".join(matches)
-        return "\n".join(matches) or "(no matches)"
+        return "\n".join(matches) or "（无匹配）"
 
     def tool_run_shell(self, args):
         command = str(args.get("command", "")).strip()
         if not command:
-            raise ValueError("command must not be empty")
+            raise ValueError("参数 command 不能为空")
         timeout = int(args.get("timeout", 20))
         if timeout < 1 or timeout > 120:
-            raise ValueError("timeout must be in [1, 120]")
+            raise ValueError("参数 timeout 须在 1–120 之间")
         result = subprocess.run(
             command,
             cwd=self.root,
@@ -886,9 +935,9 @@ class MiniAgent:
             [
                 f"exit_code: {result.returncode}",
                 "stdout:",
-                result.stdout.strip() or "(empty)",
+                result.stdout.strip() or "（空）",
                 "stderr:",
-                result.stderr.strip() or "(empty)",
+                result.stderr.strip() or "（空）",
             ]
         )
 
@@ -896,23 +945,44 @@ class MiniAgent:
         path = self.path(args["path"])
         content = str(args["content"])
         atomic_write_text(path, content)
-        return f"wrote {path.relative_to(self.root)} ({len(content)} chars)"
+        return f"已写入 {path.relative_to(self.root)}（{len(content)} 字符）"
 
     def tool_patch_file(self, args):
         path = self.path(args["path"])
         if not path.is_file():
-            raise ValueError("path is not a file")
+            raise ValueError("path 不是文件")
         old_text = str(args.get("old_text", ""))
         if not old_text:
-            raise ValueError("old_text must not be empty")
+            raise ValueError("参数 old_text 不能为空")
         if "new_text" not in args:
-            raise ValueError("missing new_text")
+            raise ValueError("缺少参数 new_text")
         text = path.read_text(encoding="utf-8")
         count = text.count(old_text)
         if count != 1:
-            raise ValueError(f"old_text must occur exactly once, found {count}")
+            raise ValueError(f"参数 old_text 须恰好出现 1 次，实际出现 {count} 次")
         atomic_write_text(path, text.replace(old_text, str(args["new_text"]), 1))
-        return f"patched {path.relative_to(self.root)}"
+        return f"已修补 {path.relative_to(self.root)}"
+
+    ###################################################
+    #### 7) Task Planning (Phase 3) ###################
+    ###################################################
+    # 与 delegate 对比：不创建子 Agent、不占用 ask 的 tool_steps；一次 complete + JSON 校验
+    def tool_make_plan(self, args):
+        """单次 planning 模型调用；成功则写入 session memory.plan 并满足 --plan-first 门控。"""
+        goal = str(args.get("goal", "")).strip()
+        context = str(args.get("context", "")).strip()
+        planning_prompt = build_planning_prompt(goal, context, self.workspace.text())
+        # 专用 complete，只返回相应的json结果，不像其他的工具都是直接执行py，或者是问LLM要哪些工具，但返回的都是<tool>。。
+        raw = self.model_client.complete(planning_prompt, self.max_new_tokens)
+        try:
+            plan = parse_plan_response(raw)
+        except ValueError as exc:
+            # 解析失败不写 memory.plan，主循环可将 error 当 tool 结果继续 retry
+            return f"错误：make_plan 失败：{exc}"
+        self.session["memory"]["plan"] = plan
+        self._ask_plan_satisfied = True  # 仅当轮 ask 有效；下一条用户消息在 ask() 开头会清零
+        self.session_path = self.session_store.save(self.session)
+        return format_plan_tool_result(plan)
 
     ###################################################
     #### 6) Delegation And Bounded Subagents ##########
@@ -920,10 +990,10 @@ class MiniAgent:
     #创建并调用子Agent完成一些读的操作
     def tool_delegate(self, args):
         if self.depth >= self.max_depth:
-            raise ValueError("delegate depth exceeded")
+            raise ValueError("delegate 调用深度超限")
         task = str(args.get("task", "")).strip()
         if not task:
-            raise ValueError("task must not be empty")
+            raise ValueError("参数 task 不能为空")
         child = MiniAgent(
             model_client=self.model_client,
             workspace=self.workspace,
@@ -940,5 +1010,5 @@ class MiniAgent:
         child.session["memory"]["task"] = task
         #notes的第一个会截取历史信息放进去
         child.session["memory"]["notes"] = [clip(self.history_text(), 300)]
-        return "delegate_result:\n" + child.ask(task)
+        return "delegate 结果：\n" + child.ask(task)
 

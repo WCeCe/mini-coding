@@ -12,6 +12,9 @@
 | [`command/`](./command/) | **主 Agent** | **目标级**任务（不含实现步骤） | 派活时 |
 | [`feedback/`](./feedback/) | **子 Agent → 主 Agent 审** | 任务完成后的回报文档 | 子 Agent 完成后新增文件 |
 | [`my_research/`](./my_research/) | **用户** | 根据主 Agent 构思自行调研的笔记 | 用户调研过程中 |
+| 根目录说明 | **主 Agent** | Phase 3 中文 walkthrough 等 | 阶段交付时 |
+
+**Phase 3 中文说明**：[`PHASE3-WALKTHROUGH-zh.md`](./PHASE3-WALKTHROUGH-zh.md)
 
 ---
 
@@ -48,8 +51,8 @@
 
 - **Phase 1**：✅ 变更治理
 - **Phase 2**：✅ Hook + 可观测 + 重构（含终端 trace、shell 审计、YAML）
-- **阶段记录**（大阶段各一份）：[`phase1`](./struct/phase1.md) · [`phase2`](./struct/phase2.md)
-- **Phase 3**：未开工，见 [`struct/01`](./struct/01-vision-and-roadmap.md)
+- **阶段记录**（大阶段各一份）：[`phase1`](./struct/phase1.md) · [`phase2`](./struct/phase2.md) · [`phase3`](./struct/phase3.md)
+- **Phase 3**：🚧 首项 ✅ · 中文说明 [`PHASE3-WALKTHROUGH-zh`](./PHASE3-WALKTHROUGH-zh.md) · struct [`phase3`](./struct/phase3.md)
 
 ---
 

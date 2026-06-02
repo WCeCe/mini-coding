@@ -9,7 +9,7 @@
 # 6) Delegation And Bounded Subagents -> tool_delegate
 
 DOC_NAMES = ("AGENTS.md", "README.md", "pyproject.toml", "package.json")
-HELP_TEXT = "/help, /memory, /session, /reset, /exit"
+HELP_TEXT = "/help、/memory、/session、/reset、/exit"
 WELCOME_ART = (
     "/\\     /\\\\",
     "{  `---'  }",
@@ -20,12 +20,12 @@ WELCOME_ART = (
 )
 HELP_DETAILS = "\n".join(
     [
-        "Commands:",
-        "/help    Show this help message.",
-        "/memory  Show the agent's distilled working memory.",
-        "/session Show the path to the saved session file.",
-        "/reset   Clear the current session history and memory.",
-        "/exit    Exit the agent.",
+        "命令：",
+        "/help    显示本帮助。",
+        "/memory  显示 Agent 的工作记忆摘要。",
+        "/session 显示当前会话文件路径。",
+        "/reset   清空当前会话历史与 memory。",
+        "/exit    退出 Agent。",
     ]
 )
 MAX_TOOL_OUTPUT = 4000

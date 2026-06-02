@@ -92,11 +92,11 @@ class WorkspaceContext:
 
     # 获取快照信息转为文本
     def text(self):
-        commits = "\n".join(f"- {line}" for line in self.recent_commits) or "- none"
-        docs = "\n".join(f"- {path}\n{snippet}" for path, snippet in self.project_docs.items()) or "- none"
+        commits = "\n".join(f"- {line}" for line in self.recent_commits) or "- 无"
+        docs = "\n".join(f"- {path}\n{snippet}" for path, snippet in self.project_docs.items()) or "- 无"
         return "\n".join(
             [
-                "Workspace:",
+                "工作区：",
                 f"- cwd: {self.cwd}",
                 f"- repo_root: {self.repo_root}",
                 f"- branch: {self.branch}",
