@@ -1,6 +1,6 @@
 # Phase 1 调研清单（用户向）
 
-> 根据 [`struct/01-vision-and-roadmap.md`](../../struct/01-vision-and-roadmap.md) 与 [`struct/04-phase1-decisions-and-mvp.md`](../../struct/04-phase1-decisions-and-mvp.md) 进行调研。
+> 根据 [`struct/01-vision-and-roadmap.md`](../../struct/01-vision-and-roadmap.md) 与 [`struct/phase1.md`](../../struct/phase1.md) 进行调研。
 >
 > **你的笔记请写在同目录下**（如 `Aider.md`），不要写进 `struct/` 或 `feedback/`。
 
@@ -64,7 +64,7 @@
 1. Aider 文档 / 源码（变更与 git 相关部分）
 2. 本地用 `difflib` 生成一个小文件 diff
 3. 对照 [`min_agent的变更代码逻辑.md`](./min_agent的变更代码逻辑.md) 走读本项目
-4. 阅读 [`struct/05-phase1-implementation-design.md`](../../struct/05-phase1-implementation-design.md)，标注同意 / 疑问
+4. 阅读 [`struct/phase1.md`](../../struct/phase1.md)，标注同意 / 疑问
 
 ---
 

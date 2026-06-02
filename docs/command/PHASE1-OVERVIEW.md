@@ -7,7 +7,7 @@
 
 ## 1. 阶段目标
 
-在 `mini_coding_agent.py` 上交付 **变更治理层**，使文件修改可预览、可审批、可回滚、可审计，并达到 [`struct/06`](../struct/06-phase1-portfolio-and-depth.md) 的 Done Definition。
+在 `mini_coding_agent.py` 上交付 **变更治理层**，使文件修改可预览、可审批、可回滚、可审计，并达到 [`struct/phase1.md`](../struct/phase1.md) 的 Done Definition。
 
 ---
 
@@ -29,7 +29,7 @@
 
 ### 2.3 已对齐产品决策
 
-见 [`struct/04-phase1-decisions-and-mvp.md`](../struct/04-phase1-decisions-and-mvp.md)。
+见 [`struct/phase1.md`](../struct/phase1.md)。
 
 ---
 
@@ -40,6 +40,7 @@
 | 依赖 | 标准库 + 现有 pytest，不新增运行时依赖 |
 | 结构 | 主逻辑保持 `mini_coding_agent.py` 单文件 |
 | 改动 | 最小 diff，不顺手重构无关代码 |
+| 注释 | **保留**：除非逻辑完全删除，否则保留既有注释。**新增**：生成/改动的代码须带适量注释（模块职责、非显而易见分支、可靠性契约），保证可读性 |
 | 测试 | 新行为有 pytest；可用 `FakeModelClient`，不依赖 Ollama |
 | 验证 | `python -m pytest -q`、`python -m ruff check .` |
 | Git | 不 `commit` / `push`（除非用户明确要求） |
@@ -66,8 +67,7 @@
 请先读：
 - @docs/command/PHASE1-OVERVIEW.md
 - @docs/command/<TASK_ID>.md
-- @docs/struct/05-phase1-implementation-design.md
-- @docs/struct/06-phase1-portfolio-and-depth.md（§4 Done Definition）
+- @docs/struct/phase1.md
 
 在约束内自行设计方案并实现。
 回报写入 docs/feedback/<TASK_ID>.md（含：你的方案摘要、如何满足契约与 Done Definition、验证结果）。

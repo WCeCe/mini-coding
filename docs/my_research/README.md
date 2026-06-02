@@ -31,8 +31,7 @@ my_research/
 **Phase 1 — 变更治理**
 
 - 调研清单：[`phase_1/research-plan.md`](./phase_1/research-plan.md)
-- 构想与决策：[`struct/04-phase1-decisions-and-mvp.md`](../struct/04-phase1-decisions-and-mvp.md)
-- 实现设计：[`struct/05-phase1-implementation-design.md`](../struct/05-phase1-implementation-design.md)
+- 阶段记录：[`struct/phase1.md`](../struct/phase1.md)
 
 ---
 

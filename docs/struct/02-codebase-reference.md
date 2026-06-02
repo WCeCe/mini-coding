@@ -91,7 +91,7 @@ IGNORED_PATH_NAMES = {".git", ".mini-coding-agent", "__pycache__", ...}
 parse → ask → run_tool → approve → tool_write_file / tool_patch_file
 ```
 
-**计划插入点（见 `05-phase1-implementation-design.md`）：**
+**治理插入点（见 `phase1.md`）：**
 ```
 run_tool → validate → repeated_tool_call
   → [write_file/patch_file] diff → approve(diff) → checkpoint → atomic write

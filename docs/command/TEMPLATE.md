@@ -24,7 +24,7 @@
 
 ## 约束
 
-（边界、规范、禁止项；可引用 `struct/` 与 `PHASE1-OVERVIEW` §3）
+（边界、规范、禁止项；可引用 `struct/`、各 Phase OVERVIEW §3；含 [`struct/01`](../struct/01-vision-and-roadmap.md) 铁律 §5 **保留用户注释**、§6 **新增代码须有注释**）
 
 
 

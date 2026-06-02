@@ -1,0 +1,66 @@
+# Mini-Coding-Agent — 内置 Hook 配置示例（Phase 2.1）
+
+# 说明：本文件位于包内 mini_coding_agent/hooks/，仅为模板。
+#       Agent 运行时不会自动读取本路径；必须复制到工作区 .mini-coding-agent/hooks.yaml
+#       或通过 --hooks-config 指定其它路径。
+
+#
+# 【放哪里】复制到 Agent 工作区根目录（即 --cwd 指向的目录）：.mini-coding-agent/hooks.yaml
+
+# 仓库根目录执行示例（PowerShell）：
+#
+#   New-Item -ItemType Directory -Force -Path ".mini-coding-agent"
+#   Copy-Item mini_coding_agent/hooks/hooks.yaml.example .mini-coding-agent/hooks.yaml
+#
+
+# 【自定义路径】
+#   uv run mini-coding-agent --hooks-config D:/path/to/hooks.yaml
+#
+# 【优先级】CLI 显式旗标（--no-*）> 本文件 > 内置默认（三项全开）
+#
+# 【缺省行为】若不存在 hooks.yaml，三项内置 Hook 全部开启，无需报错。
+#
+# 【重要】Hook 仅观察（observe-only）：不阻断工具、不替代 --approval ask 审批。
+#         shell 审计命中后仍会执行命令，只在 stderr 告警并写入 session。
+
+# ---------------------------------------------------------------------------
+# 内置 Hook 总开关（true=启用，false=关闭）
+# ---------------------------------------------------------------------------
+builtin_hooks:
+
+  # session_trace：将每步 tool 的步序、耗时、成败写入 session JSON
+  #   → 字段 "tool_trace"
+  #   → risky 工具（write/patch/shell 等）另写 "tool_audit"（仅 args 键名，非完整参数）
+  # 关闭后：session 里不再有 tool_trace / tool_audit 新条目
+  session_trace: true
+
+  # trace_display：每步 tool 完成后向 stderr 打印一行摘要（与模型 final 的 stdout 分开）
+  #   示例：[mini-agent] #1 read_file ok 3.2ms
+  # 关闭后：终端不再每步一行；可与 session_trace 独立开关
+  trace_display: true
+
+  # shell_audit：仅针对 run_shell，对 command 做正则匹配
+  #   命中 → stderr 打印 SHELL AUDIT 告警 + session 字段 "shell_audit"
+  #   不阻断：命令照常执行，approve 流程不变
+  shell_audit: true
+
+# ---------------------------------------------------------------------------
+# shell 审计专用参数（仅当 shell_audit: true 时生效）
+# ---------------------------------------------------------------------------
+shell_audit:
+
+  # warn_patterns：危险命令模式列表（不区分大小写的正则）
+  #   无效正则被静默跳过（fail-open），不影响 Agent 启动
+  #   可按项目需要增删；下方为内置默认值示例
+  warn_patterns:
+    - "rm -rf"          # 递归强制删除
+    - "curl.*\\|.*sh"   # curl 管道到 shell
+    # - "wget.*\\|.*sh" # 取消注释可启用
+
+# ---------------------------------------------------------------------------
+# 等价的 CLI 关闭方式（会覆盖本文件中对应项为 true 的设置）
+# ---------------------------------------------------------------------------
+#   --no-trace-display    关闭 trace_display
+#   --no-session-trace    关闭 session_trace
+#   --no-shell-audit      关闭 shell_audit
+#   --no-trace-display --no-shell-audit   安静模式示例

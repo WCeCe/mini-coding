@@ -46,18 +46,18 @@
 
 ## 当前阶段（摘要）
 
-- **战略**：第一阶段 **变更治理层**（diff、checkpoint、回滚）
-- **作品集定位**：见 [`struct/06-phase1-portfolio-and-depth.md`](./struct/06-phase1-portfolio-and-depth.md)
-- **四个决策**：已对齐（见 [`struct/04`](./struct/04-phase1-decisions-and-mvp.md)）
-- **执行**：子 Agent 按 [`command/P1-CHANGE-GOVERNANCE.md`](./command/P1-CHANGE-GOVERNANCE.md) 在约束内自行设计实现
+- **Phase 1**：✅ 变更治理
+- **Phase 2**：✅ Hook + 可观测 + 重构（含终端 trace、shell 审计、YAML）
+- **阶段记录**（大阶段各一份）：[`phase1`](./struct/phase1.md) · [`phase2`](./struct/phase2.md)
+- **Phase 3**：未开工，见 [`struct/01`](./struct/01-vision-and-roadmap.md)
 
 ---
 
 ## 代码与使用说明
 
 - 运行与安装：[`../README.md`](../README.md)
-- 源代码：[`../mini_coding_agent.py`](../mini_coding_agent.py)
+- 源代码：[`../mini_coding_agent/`](../mini_coding_agent/)（包）+ [`../mini_coding_agent.py`](../mini_coding_agent.py)（CLI 入口）
 
 ---
 
-*文档体系 v2 · 2026-05-29*
+*文档体系 v3 · 大阶段：phase1 / phase2 / phase3*

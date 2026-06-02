@@ -3,8 +3,8 @@
 
 This folder contains a small standalone coding agent:
 
-- code: `mini_coding_agent.py`
-- CLI: `mini-coding-agent`
+- package: `mini_coding_agent/` (implementation)
+- CLI entry: `mini_coding_agent.py` or `mini-coding-agent`
 
 It is a minimal local agent loop with:
 
@@ -13,6 +13,8 @@ It is a minimal local agent loop with:
 - structured tools
 - approval handling for risky tools
 - **change governance** for file writes (diff preview, checkpoint, rollback)
+- **tool-boundary hooks** for observability and extension (`pre_tool` / `post_tool`)
+- **terminal tool trace**, shell audit alerts, and **YAML-configured built-in hooks** (Phase 2.1)
 - transcript and memory persistence
 - bounded delegation
 
@@ -62,7 +64,7 @@ Optional:
 
 - `uv` for environment management and the `mini-coding-agent` CLI entry point
 
-This project has no Python runtime dependency beyond the standard library, so you can run it directly with `python mini_coding_agent.py` if you do not want to use `uv`.
+This project depends on the Python standard library plus **PyYAML** (for optional hook configuration). Install with `pip install -e .` or use `uv`, then run `python mini_coding_agent.py` or the `mini-coding-agent` CLI entry point.
 
 &nbsp;
 ## Install Ollama
@@ -201,6 +203,193 @@ Saved sessions (`.mini-coding-agent/sessions/`) record governance metadata for f
 
 For a walkthrough that hits file writes and approvals, see [EXAMPLE.md](EXAMPLE.md).
 
+&nbsp;
+## Extension & Observability
+
+Phase 2 adds a lightweight **Hook** layer at the tool execution boundary. The model tool format and `parse` behavior are unchanged; hooks sit in the execution layer alongside change governance.
+
+### What hooks do
+
+After a tool call passes validation, the runtime fires a matched pair of events for each `run_tool` invocation:
+
+- **`pre_tool`** — before execution (including diff approval and checkpointing for file tools)
+- **`post_tool`** — after execution completes, including error-string returns
+
+Hooks are **observe-only**: they cannot block tools, change arguments, or alter return values. **Approval and change governance still run on their original paths.** If a hook callback raises an exception, the agent **fail-opens** and continues the tool call.
+
+Invalid tool names or failed argument validation do **not** trigger hooks.
+
+### Default trace hook
+
+By default, each `MiniAgent` registers a built-in **trace hook** (`enable_trace_hook=True`). It appends structured entries to the saved session JSON under:
+
+```text
+.mini-coding-agent/sessions/<session-id>.json  →  "tool_trace"
+```
+
+Each entry includes step number, tool name, success/failure, duration in milliseconds, and whether the tool is marked risky. Risky tools also get a separate **`tool_audit`** list (argument key names only — this is audit logging, not a substitute for `--approval ask`).
+
+Open a session file after a run, or use `/session` in the REPL to find the path.
+
+### Registering custom hooks (programmatic)
+
+Hooks are registered in-process with Python callbacks. This is intended for embedding or tests, not the interactive CLI:
+
+```python
+from mini_coding_agent import MiniAgent, SessionStore, WorkspaceContext
+from mini_coding_agent.models import FakeModelClient
+
+workspace = WorkspaceContext.build(".")
+store = SessionStore(".mini-coding-agent/sessions")
+agent = MiniAgent(
+    model_client=FakeModelClient([]),
+    workspace=workspace,
+    session_store=store,
+)
+
+def on_pre(ctx):
+    print(f"before {ctx.name}")
+
+def on_post(ctx):
+    print(f"after {ctx.name}: success={ctx.success}, {ctx.duration_ms:.1f}ms")
+
+agent.register_hook("pre_tool", on_pre)
+agent.register_hook("post_tool", on_post)
+```
+
+Disable the built-in trace hook when constructing the agent:
+
+```python
+MiniAgent(..., enable_trace_hook=False)
+```
+
+### Project layout (after Phase 2 refactor)
+
+| Path | Role |
+|------|------|
+| `mini_coding_agent.py` | Thin CLI launcher (`python mini_coding_agent.py`) |
+| `mini_coding_agent/agent.py` | Main agent loop, tools, change governance |
+| `mini_coding_agent/hooks/registry.py` | Hook registry and context (`pre_tool` / `post_tool`) |
+| `mini_coding_agent/hooks/trace_hook.py` | Session trace + risky tool audit |
+| `mini_coding_agent/hooks/trace_display_hook.py` | Terminal one-line trace (stderr) |
+| `mini_coding_agent/hooks/shell_audit_hook.py` | `run_shell` pattern warnings + `shell_audit` |
+| `mini_coding_agent/hooks/builtin.py` | Register built-in hooks from YAML config |
+
+Import from the package as before: `from mini_coding_agent import MiniAgent`.
+
+### Known limitations (Phase 2)
+
+- **Observe-only hooks.** Hooks cannot deny tools or modify args/results; blocking or policy enforcement belongs in the execution layer (e.g. approval), not hooks.
+- **Tool boundary only.** There are no `session_start`, `session_end`, or per-model-step hooks in this phase.
+- **No external hook plugins.** No `hooks.json`, shell scripts, or dynamic module loading — only in-process Python callbacks.
+- **Delegate tracing is split.** A parent `delegate` call gets one trace entry; the child agent has its own session and `tool_trace` for tools it runs internally.
+- **Trace is session-local.** There is no separate trace file or Web UI; inspect the session JSON or add your own hook to export elsewhere.
+
+### Phase 2.1: Three-layer hook stack
+
+Phase 2.1 makes the default hooks **visible in the terminal** and **configurable per workspace**, without changing the model tool format or approval flow.
+
+| Layer | What you get |
+|-------|----------------|
+| **1 — Runtime visibility** | After each tool completes, one line on **stderr**: step, tool name, success/failure, duration (ms). Works in REPL and one-shot mode. |
+| **2 — Built-in hooks** | **Session trace** (JSON in the session file), **terminal trace display** (layer 1), and **shell audit** (pattern warnings for `run_shell`). |
+| **3 — YAML config** | Enable or disable each built-in hook via `.mini-coding-agent/hooks.yaml`. No external scripts or plugin loading. |
+
+Example terminal output (stderr, separate from the model’s final answer on stdout):
+
+```text
+[mini-agent] #1 read_file ok 3.2ms
+[mini-agent] #2 run_shell ok 45.1ms
+[mini-agent] SHELL AUDIT: matched 'rm -rf' — cmd: rm -rf /tmp/demo
+```
+
+#### Approve vs hooks
+
+These roles stay separate:
+
+- **`--approval ask`** (or `auto` / `never`) — **gates risky tools** before they run. You must approve shell commands and file writes when using `ask`.
+- **Hooks** — **observe only**. They print trace lines, write session audit fields, and warn on dangerous shell patterns. They do **not** block execution, skip approval, or change tool results.
+
+Shell audit runs **after** `run_shell` completes. A warning does not cancel the command; it adds visibility alongside approval.
+
+#### Session fields (Phase 2.1)
+
+In addition to Phase 2’s `tool_trace` and `tool_audit`, shell pattern hits are stored under:
+
+```text
+.mini-coding-agent/sessions/<session-id>.json  →  "shell_audit"
+```
+
+Each `shell_audit` entry includes the matched pattern, a clipped command preview, step number, and timestamp.
+
+#### `hooks.yaml` configuration
+
+Default path (under your workspace root):
+
+```text
+.mini-coding-agent/hooks.yaml
+```
+
+Copy the repo template [`hooks.yaml.example`](mini_coding_agent/hooks/hooks.yaml.example) into that path and edit as needed.
+
+Example:
+
+```yaml
+builtin_hooks:
+  session_trace: true   # write tool_trace to session JSON
+  trace_display: true   # print one stderr line per tool step
+  shell_audit: true     # warn on dangerous run_shell patterns
+
+shell_audit:
+  warn_patterns:        # case-insensitive regex list
+    - "rm -rf"
+    - "curl.*\\|.*sh"
+```
+
+**Default behavior when the file is missing:** all three built-in hooks are **on**, with the built-in `warn_patterns` shown above.
+
+**Malformed YAML:** the agent still starts (**fail-open**). A short warning is printed to stderr and defaults are used.
+
+**Priority:** explicit CLI flags override YAML; YAML overrides built-in defaults.
+
+| CLI flag | Effect |
+|----------|--------|
+| `--no-trace-display` | Disable per-tool stderr trace lines |
+| `--no-session-trace` | Disable session `tool_trace` JSON |
+| `--no-shell-audit` | Disable shell pattern audit hook |
+| `--hooks-config PATH` | Use a custom `hooks.yaml` path |
+
+Quiet mode example:
+
+```bash
+uv run mini-coding-agent --no-trace-display
+```
+
+#### Project layout (Phase 2 / 2.1 — hooks package)
+
+All hook implementations live under `mini_coding_agent/hooks/`. Add new hooks in that directory and register them from `builtin.py` or via `register_hook`.
+
+| Path | Role |
+|------|------|
+| `mini_coding_agent/hooks/hook_config.py` | Load `hooks.yaml`, CLI overrides, fail-open defaults |
+| `mini_coding_agent/hooks/hooks.yaml.example` | Template; copy to `<workspace>/.mini-coding-agent/hooks.yaml` |
+| `mini_coding_agent/hooks/registry.py` | Hook registry and context |
+| `mini_coding_agent/hooks/builtin.py` | Register built-in hooks from config |
+| `mini_coding_agent/hooks/trace_hook.py` | Session trace + risky tool audit |
+| `mini_coding_agent/hooks/trace_display_hook.py` | Terminal one-line trace |
+| `mini_coding_agent/hooks/shell_audit_hook.py` | Shell pattern audit |
+
+### Known limitations (Phase 2.1)
+
+- **Shell audit does not block.** Pattern matches produce stderr warnings and session records only; `--approval ask` still controls whether risky tools run.
+- **No command denylist enforcement.** Blocking dangerous commands is out of scope; hooks remain observe-only.
+- **YAML configures built-in hooks only.** No external Python modules, shell scripts, or `hooks.json` plugins.
+- **Invalid regex in `warn_patterns`** is skipped silently (fail-open); other patterns still apply.
+- **Terminal trace goes to stderr.** Redirect or disable with `--no-trace-display` / YAML if you need a quiet pipeline.
+
+&nbsp;
+## Sessions and Resume
+
 The agent saves sessions under the target workspace root in:
 
 ```text
@@ -278,6 +467,14 @@ Important flags:
   controls sampling randomness; default: `0.2`
 - `--top-p`
   controls nucleus sampling for generation; default: `0.9`
+- `--hooks-config`
+  path to `hooks.yaml` for built-in hook toggles; default: `<workspace>/.mini-coding-agent/hooks.yaml`
+- `--no-trace-display`
+  disable per-tool stderr trace lines (overrides `hooks.yaml`)
+- `--no-session-trace`
+  disable session `tool_trace` JSON (overrides `hooks.yaml`)
+- `--no-shell-audit`
+  disable shell pattern audit hook (overrides `hooks.yaml`)
 
 &nbsp;
 ## Example

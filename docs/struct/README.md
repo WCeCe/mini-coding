@@ -1,47 +1,37 @@
-# struct — 主 Agent 构想与搭建思路
+# struct — 项目构想与阶段记录
 
-本目录存放**主 Agent** 对项目的整体规划、架构说明与阶段设计。随项目演进**持续追加**新文件，不删除历史阶段文档。
-
----
-
-## 阅读顺序（新参与者）
-
-1. [`01-vision-and-roadmap.md`](./01-vision-and-roadmap.md) — 项目定位、演进路线、铁律
-2. [`06-phase1-portfolio-and-depth.md`](./06-phase1-portfolio-and-depth.md) — **作品集亮点、深度边界、Done 定义**
-3. [`04-phase1-decisions-and-mvp.md`](./04-phase1-decisions-and-mvp.md) — 第一阶段已对齐决策与 MVP 边界
-4. [`05-phase1-implementation-design.md`](./05-phase1-implementation-design.md) — Phase 1 **需求与可靠性契约**（非实现说明书）
-5. [`02-codebase-reference.md`](./02-codebase-reference.md) — 现有代码架构速查
-6. [`03-collaboration-model.md`](./03-collaboration-model.md) — 主/子 Agent 分工
+主 Agent 维护。每个**大阶段**只保留一份文档；过程细节在 `feedback/`。
 
 ---
 
-## 文件清单
+## 阅读顺序
 
-| 文件 | 说明 | 状态 |
+1. [`01-vision-and-roadmap.md`](./01-vision-and-roadmap.md) — 总目标、铁律、路线图
+2. [`phase1.md`](./phase1.md) — 变更治理 ✅
+3. [`phase2.md`](./phase2.md) — Hook + 可观测 + 重构 ✅
+4. [`02-codebase-reference.md`](./02-codebase-reference.md) — 代码架构速查
+5. [`03-collaboration-model.md`](./03-collaboration-model.md) — 主/子 Agent 分工
+
+---
+
+## 阶段文档（仅大阶段）
+
+| 文件 | 内容 | 状态 |
 |------|------|------|
-| `01-vision-and-roadmap.md` | 总目标、阶段规划、明确不做的事 | 稳定 |
-| `02-codebase-reference.md` | 六大组件、工具、主循环、常量 | 随代码小幅更新 |
-| `03-collaboration-model.md` | 多窗口协作模型与角色边界 | 稳定 |
-| `04-phase1-decisions-and-mvp.md` | Phase 1 四决策 + MVP | 已对齐 |
-| `05-phase1-implementation-design.md` | Phase 1 **需求与可靠性契约**（非实现说明书） | 稳定 |
-| `06-phase1-portfolio-and-depth.md` | 招聘向亮点、深度上限、Done 定义 | 稳定 |
+| `phase1.md` | 变更治理（diff、checkpoint、回滚） | ✅ |
+| `phase2.md` | Hook 扩展 + 三层栈 + 包重构 + YAML | ✅ |
+| `phase3.md` | （未开工） | — |
 
-后续阶段示例命名：`07-phase2-*.md` …
+> 原 Phase 2.1（终端 trace、shell 审计、YAML）已并入 `phase2.md`，不再单独成阶段。
 
 ---
 
-## 项目状态板
+## 状态板
 
 | 项目 | 状态 |
 |------|------|
-| 战略：变更治理优先 | ✅ 已对齐 |
-| Phase 1 四个决策 | ✅ 已对齐（2026-05-29） |
-| Phase 1 实现设计稿 | ✅ 已确认 |
-| Phase 1 任务单 | ✅ 已派发（`P1-CHANGE-GOVERNANCE` / `P1-DOCS` / `P1-REVIEW`） |
-| Phase 1 变更治理实现 | ✅ P1-CHANGE-GOVERNANCE 已通过 |
-| Phase 1 README | ✅ P1-DOCS 已通过 |
-| Phase 1 总验收 | ✅ **Phase 1 已完成** |
-| 用户调研 `my_research/phase_1/` | 🔄 进行中（与实现并行） |
-| `feedback/` 回报 | 随任务完成递增 |
+| Phase 1 | ✅ |
+| Phase 2（含 Hook 用户价值） | ✅ |
+| 测试 | 43 passed, 1 skipped |
 
-*主 Agent 在里程碑变化时更新本表。*
+*新大阶段：`phase3.md`*

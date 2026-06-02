@@ -11,6 +11,7 @@ from mini_coding_agent import (
     WorkspaceContext,
     build_welcome,
 )
+from mini_coding_agent.hooks.hook_config import HookConfig, load_hook_config
 
 
 def build_workspace(tmp_path):
@@ -447,7 +448,7 @@ def test_write_failure_rolls_back_new_file(tmp_path):
     agent = build_agent(tmp_path, [], approval_policy="auto")
     target = tmp_path / "fail.py"
 
-    with patch("mini_coding_agent.atomic_write_text", side_effect=OSError("disk full")):
+    with patch("mini_coding_agent.agent.atomic_write_text", side_effect=OSError("disk full")):
         result = agent.run_tool("write_file", {"path": "fail.py", "content": "boom\n"})
 
     assert "错误：工具 write_file 执行失败" in result
@@ -462,7 +463,7 @@ def test_patch_failure_restores_original_content(tmp_path):
     agent = build_agent(tmp_path, [], approval_policy="auto")
 
     with patch(
-        "mini_coding_agent.atomic_write_text",
+        "mini_coding_agent.agent.atomic_write_text",
         side_effect=[OSError("disk full"), None],
     ):
         result = agent.run_tool(
@@ -546,3 +547,224 @@ def test_run_shell_approval_unchanged(tmp_path):
     prompt = mock_input.call_args.args[0]
     assert "approve run_shell" in prompt
     assert "change preview" not in prompt
+
+
+def test_trace_hook_records_successful_tool(tmp_path):
+    (tmp_path / "hello.txt").write_text("hi\n", encoding="utf-8")
+    agent = build_agent(tmp_path, [])
+
+    agent.run_tool("read_file", {"path": "hello.txt", "start": 1, "end": 1})
+
+    trace = agent.session["tool_trace"]
+    assert len(trace) == 1
+    assert trace[0]["name"] == "read_file"
+    assert trace[0]["success"] is True
+    assert trace[0]["step"] == 1
+    assert trace[0]["duration_ms"] >= 0
+
+
+def test_trace_hook_records_failed_tool(tmp_path):
+    agent = build_agent(tmp_path, [], approval_policy="never")
+
+    agent.run_tool("write_file", {"path": "x.py", "content": "1\n"})
+
+    trace = agent.session["tool_trace"]
+    assert len(trace) == 1
+    assert trace[0]["name"] == "write_file"
+    assert trace[0]["success"] is False
+    assert trace[0]["risky"] is True
+    assert agent.session["tool_audit"]
+
+
+def test_validation_error_does_not_emit_hooks(tmp_path):
+    agent = build_agent(tmp_path, [])
+
+    agent.run_tool("read_file", {})
+
+    assert "tool_trace" not in agent.session or agent.session.get("tool_trace") == []
+
+
+def test_register_custom_hook_observes_tool(tmp_path):
+    agent = build_agent(tmp_path, [], enable_trace_hook=False)
+    seen = []
+
+    def pre(ctx):
+        seen.append(("pre", ctx.name))
+
+    def post(ctx):
+        seen.append(("post", ctx.name, ctx.success))
+
+    agent.register_hook("pre_tool", pre)
+    agent.register_hook("post_tool", post)
+    agent.run_tool("list_files", {})
+
+    assert seen[0] == ("pre", "list_files")
+    assert seen[1][0] == "post"
+    assert seen[1][1] == "list_files"
+    assert seen[1][2] is True
+
+
+def test_hook_fail_open_continues_tool_execution(tmp_path):
+    (tmp_path / "hello.txt").write_text("hi\n", encoding="utf-8")
+    agent = build_agent(tmp_path, [], enable_trace_hook=False)
+
+    def exploding_pre(_ctx):
+        raise RuntimeError("hook failed")
+
+    agent.register_hook("pre_tool", exploding_pre)
+    result = agent.run_tool("read_file", {"path": "hello.txt", "start": 1, "end": 1})
+
+    assert "hello.txt" in result
+
+
+def test_governed_tool_emits_single_hook_pair(tmp_path):
+    agent = build_agent(tmp_path, [], approval_policy="auto")
+    pre_count = post_count = 0
+
+    def count_pre(_ctx):
+        nonlocal pre_count
+        pre_count += 1
+
+    def count_post(_ctx):
+        nonlocal post_count
+        post_count += 1
+
+    agent.register_hook("pre_tool", count_pre)
+    agent.register_hook("post_tool", count_post)
+    agent.run_tool("write_file", {"path": "tracked.py", "content": "ok\n"})
+
+    assert pre_count == 1
+    assert post_count == 1
+    assert len(agent.session["tool_trace"]) >= 1
+
+
+def test_delegate_child_has_independent_trace(tmp_path):
+    (tmp_path / "README.md").write_text("demo\n", encoding="utf-8")
+    agent = build_agent(
+        tmp_path,
+        [
+            '<tool>{"name":"delegate","args":{"task":"read README","max_steps":2}}</tool>',
+            '<tool>{"name":"read_file","args":{"path":"README.md","start":1,"end":1}}</tool>',
+            "<final>child done</final>",
+            "<final>parent done</final>",
+        ],
+        approval_policy="auto",
+    )
+
+    answer = agent.ask("delegate task")
+
+    assert answer == "parent done"
+    parent_trace = agent.session.get("tool_trace", [])
+    assert any(item["name"] == "delegate" for item in parent_trace)
+
+
+def test_trace_display_prints_stderr_line(tmp_path, capsys):
+    (tmp_path / "hello.txt").write_text("hi\n", encoding="utf-8")
+    agent = build_agent(tmp_path, [])
+
+    agent.run_tool("read_file", {"path": "hello.txt", "start": 1, "end": 1})
+
+    captured = capsys.readouterr()
+    assert "#1 read_file ok" in captured.err
+    assert "ms" in captured.err
+
+
+def test_trace_display_disabled_via_hook_config(tmp_path, capsys):
+    config = HookConfig(trace_display=False)
+    agent = build_agent(tmp_path, [], hook_config=config)
+
+    agent.run_tool("list_files", {})
+
+    captured = capsys.readouterr()
+    assert captured.err.strip() == ""
+    assert len(agent.session["tool_trace"]) == 1
+
+
+def test_session_trace_disabled_via_hook_config(tmp_path):
+    config = HookConfig(session_trace=False, trace_display=False)
+    agent = build_agent(tmp_path, [], hook_config=config)
+
+    agent.run_tool("list_files", {})
+
+    assert "tool_trace" not in agent.session or agent.session.get("tool_trace") == []
+
+
+def test_shell_audit_warns_and_records_without_blocking(tmp_path, capsys):
+    agent = build_agent(tmp_path, [], approval_policy="auto")
+    completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="ok", stderr="")
+
+    with patch("mini_coding_agent.agent.subprocess.run", return_value=completed):
+        result = agent.run_tool("run_shell", {"command": "rm -rf /tmp/demo", "timeout": 5})
+
+    assert "exit_code: 0" in result
+    captured = capsys.readouterr()
+    assert "SHELL AUDIT" in captured.err
+    assert "rm -rf" in captured.err
+    assert len(agent.session["shell_audit"]) == 1
+    assert agent.session["shell_audit"][0]["pattern"] == "rm -rf"
+
+
+def test_shell_audit_no_alert_for_safe_command(tmp_path, capsys):
+    agent = build_agent(tmp_path, [], approval_policy="auto")
+    completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="hi", stderr="")
+
+    with patch("mini_coding_agent.agent.subprocess.run", return_value=completed):
+        agent.run_tool("run_shell", {"command": "echo hi", "timeout": 5})
+
+    captured = capsys.readouterr()
+    assert "SHELL AUDIT" not in captured.err
+    assert "shell_audit" not in agent.session
+
+
+def test_yaml_missing_uses_defaults(tmp_path):
+    config, warnings = load_hook_config(tmp_path / ".mini-coding-agent" / "hooks.yaml")
+
+    assert warnings == []
+    assert config.session_trace is True
+    assert config.trace_display is True
+    assert config.shell_audit is True
+
+
+def test_yaml_malformed_fail_open(tmp_path):
+    hooks_dir = tmp_path / ".mini-coding-agent"
+    hooks_dir.mkdir(parents=True)
+    hooks_path = hooks_dir / "hooks.yaml"
+    hooks_path.write_text("{not: valid: yaml", encoding="utf-8")
+
+    config, warnings = load_hook_config(hooks_path)
+
+    assert config.session_trace is True
+    assert any("unreadable" in item for item in warnings)
+
+
+def test_yaml_disables_trace_display(tmp_path, capsys):
+    hooks_dir = tmp_path / ".mini-coding-agent"
+    hooks_dir.mkdir(parents=True)
+    (hooks_dir / "hooks.yaml").write_text(
+        "builtin_hooks:\n  trace_display: false\n  session_trace: true\n",
+        encoding="utf-8",
+    )
+    agent = build_agent(tmp_path, [])
+
+    agent.run_tool("list_files", {})
+
+    captured = capsys.readouterr()
+    assert "#1 list_files" not in captured.err
+    assert len(agent.session["tool_trace"]) == 1
+
+
+def test_cli_overrides_yaml_trace_display(tmp_path, capsys):
+    hooks_dir = tmp_path / ".mini-coding-agent"
+    hooks_dir.mkdir(parents=True)
+    (hooks_dir / "hooks.yaml").write_text(
+        "builtin_hooks:\n  trace_display: true\n",
+        encoding="utf-8",
+    )
+    config, _ = load_hook_config(hooks_dir / "hooks.yaml")
+    config.trace_display = False
+    agent = build_agent(tmp_path, [], hook_config=config)
+
+    agent.run_tool("list_files", {})
+
+    captured = capsys.readouterr()
+    assert "#1 list_files" not in captured.err
