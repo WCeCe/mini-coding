@@ -140,7 +140,7 @@ Phase 3 新增用例（11）：`test_make_plan_*`、`test_plan_first_*`、`test_
 
 - Plan 质量依赖模型；无 benchmark（struct §5、README limitations）
 - `--plan-first` 按 **每条用户消息** 重置 satisfied，非整 session 一次（README + 实现一致）
-- `EXAMPLE.md` 未含 Phase 3  walkthrough（任务单未要求）
+- `EXAMPLE.md` 未单独展开 Phase 3（任务单未要求）
 - struct §3 #9 原文档路径写 `P3-MAKE-PLAN` feedback；README 实际由 **P3-DOCS** 交付 — 已闭环，非实现缺口
 
 ---

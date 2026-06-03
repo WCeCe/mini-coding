@@ -13,6 +13,7 @@ from mini_coding_agent import (
 )
 from mini_coding_agent.hooks.hook_config import HookConfig, load_hook_config
 from mini_coding_agent.planning import PLAN_MAX_STEPS, parse_plan_response, validate_plan
+from mini_coding_agent.skills import SkillCatalog
 
 
 def build_workspace(tmp_path):
@@ -910,3 +911,164 @@ def test_child_agent_has_make_plan_at_delegate_depth(tmp_path):
     )
     assert "make_plan" in child.tools
     assert "delegate" not in child.tools
+
+
+def _write_skill(tmp_path, dir_name, *, name=None, description=None, body="# Skill Body\nstep 1\n", frontmatter_extra=""):
+    """测试 fixture：写入 .mini-coding-agent/skills/<dir>/SKILL.md。"""
+    skill_dir = tmp_path / ".mini-coding-agent" / "skills" / dir_name
+    skill_dir.mkdir(parents=True, exist_ok=True)
+    fm_name = name if name is not None else dir_name
+    fm_desc = description if description is not None else f"测试 Skill {dir_name}"
+    lines = ["---", f"name: {fm_name}", f"description: {fm_desc}"]
+    if frontmatter_extra:
+        lines.append(frontmatter_extra)
+    lines.extend(["---", "", body])
+    (skill_dir / "SKILL.md").write_text("\n".join(lines), encoding="utf-8")
+    return skill_dir
+
+
+def test_skill_catalog_empty_when_dir_missing(tmp_path):
+    catalog, warnings = SkillCatalog.scan(tmp_path)
+    assert catalog.names() == []
+    assert warnings == []
+
+
+def test_skill_catalog_discovers_skills(tmp_path):
+    _write_skill(tmp_path, "code-review", description="审查 PR")
+    _write_skill(tmp_path, "deploy", description="部署流程")
+    agent = build_agent(tmp_path, [])
+
+    assert set(agent.skill_catalog.names()) == {"code-review", "deploy"}
+    block = agent.skill_catalog.metadata_block()
+    assert "code-review" in block
+    assert "审查 PR" in block
+    assert "load_skill" in block
+
+
+def test_build_prefix_includes_skill_metadata_not_body(tmp_path):
+    body = "# Secret\nDo not leak in prefix\n"
+    _write_skill(tmp_path, "secret-skill", body=body)
+    agent = build_agent(tmp_path, [])
+
+    assert "Secret" not in agent.prefix
+    assert "Do not leak" not in agent.prefix
+    assert "secret-skill" in agent.prefix
+
+
+def test_skill_catalog_skips_bad_frontmatter(tmp_path, capsys):
+    skill_dir = tmp_path / ".mini-coding-agent" / "skills" / "broken"
+    skill_dir.mkdir(parents=True)
+    (skill_dir / "SKILL.md").write_text("---\n{not: valid\n---\nbody\n", encoding="utf-8")
+    _write_skill(tmp_path, "good-skill")
+
+    agent = build_agent(tmp_path, [])
+    captured = capsys.readouterr()
+
+    assert agent.skill_catalog.names() == ["good-skill"]
+    assert "frontmatter 无效" in captured.err
+
+
+def test_load_skill_stores_body_in_memory(tmp_path):
+    _write_skill(tmp_path, "code-review", body="# Review\n1. read diff\n")
+    agent = build_agent(tmp_path, [])
+
+    result = agent.run_tool("load_skill", {"name": "code-review"})
+
+    assert result.startswith("已加载 Skill 'code-review'")
+    assert "<skill_body>" in result
+    assert "read diff" in result
+    loaded = agent.session["memory"]["loaded_skills"]["code-review"]
+    assert loaded["body"] == "# Review\n1. read diff"
+    assert loaded["description"] == "测试 Skill code-review"
+
+
+def test_load_skill_unknown_name_does_not_update_memory(tmp_path):
+    _write_skill(tmp_path, "known")
+    agent = build_agent(tmp_path, [])
+
+    result = agent.run_tool("load_skill", {"name": "missing"})
+
+    assert result.startswith("错误：未知 Skill")
+    assert agent.session["memory"]["loaded_skills"] == {}
+
+
+def test_load_skill_rejects_empty_name(tmp_path):
+    agent = build_agent(tmp_path, [])
+
+    result = agent.run_tool("load_skill", {"name": "  "})
+
+    assert "错误：load_skill 参数无效" in result
+
+
+def test_load_skill_reload_overwrites_body(tmp_path):
+    _write_skill(tmp_path, "flow", body="# v1\n")
+    agent = build_agent(tmp_path, [])
+    agent.run_tool("load_skill", {"name": "flow"})
+    (tmp_path / ".mini-coding-agent" / "skills" / "flow" / "SKILL.md").write_text(
+        "---\nname: flow\ndescription: updated\n---\n\n# v2\n",
+        encoding="utf-8",
+    )
+
+    result = agent.run_tool("load_skill", {"name": "flow"})
+
+    assert "# v2" in result
+    assert agent.session["memory"]["loaded_skills"]["flow"]["body"] == "# v2"
+
+
+def test_memory_text_includes_loaded_skill_body(tmp_path):
+    _write_skill(tmp_path, "memo-skill", body="# Memo Skill\nfollow steps\n")
+    agent = build_agent(tmp_path, [])
+    agent.run_tool("load_skill", {"name": "memo-skill"})
+
+    memory = agent.memory_text()
+
+    assert "- loaded_skills:" in memory
+    assert "memo-skill" in memory
+    assert "follow steps" in memory
+
+
+def test_reset_clears_loaded_skills(tmp_path):
+    _write_skill(tmp_path, "temp")
+    agent = build_agent(tmp_path, [])
+    agent.run_tool("load_skill", {"name": "temp"})
+    assert agent.session["memory"]["loaded_skills"]
+
+    agent.reset()
+
+    assert agent.session["memory"]["loaded_skills"] == {}
+    assert "无" in agent.memory_text()
+
+
+def test_preload_skills_on_agent_init(tmp_path):
+    _write_skill(tmp_path, "preload-a", body="# A\n")
+    _write_skill(tmp_path, "preload-b", body="# B\n")
+    agent = build_agent(tmp_path, [], preload_skills=["preload-a", "preload-b"])
+
+    loaded = agent.session["memory"]["loaded_skills"]
+    assert set(loaded.keys()) == {"preload-a", "preload-b"}
+    assert "# A" in loaded["preload-a"]["body"]
+
+
+def test_preload_unknown_skill_warns_but_keeps_known(tmp_path, capsys):
+    _write_skill(tmp_path, "only-one", body="# OK\n")
+    agent = build_agent(tmp_path, [], preload_skills=["only-one", "ghost"])
+    captured = capsys.readouterr()
+
+    assert "only-one" in agent.session["memory"]["loaded_skills"]
+    assert "ghost" not in agent.session["memory"]["loaded_skills"]
+    assert "ghost" in captured.err
+
+
+def test_child_agent_has_load_skill(tmp_path):
+    _write_skill(tmp_path, "shared")
+    child = MiniAgent(
+        model_client=FakeModelClient([]),
+        workspace=build_workspace(tmp_path),
+        session_store=SessionStore(tmp_path / ".mini-coding-agent" / "sessions"),
+        depth=1,
+        max_depth=1,
+        read_only=True,
+        enable_trace_hook=False,
+    )
+    assert "load_skill" in child.tools
+    assert "shared" in child.skill_catalog.names()

@@ -1,7 +1,7 @@
 # Phase 3：任务规划与 Coding 链路深度
 
-> **状态**：🚧 Phase 3 进行中 · **首项**（make_plan + `--plan-first` + README）✅ 已结项（2026-06-02）  
-> **策略**：先设计 coding 链路深度，**暂缓** benchmark 量化；设计稳后再做回归任务集与优化。
+> **状态**：✅ Phase 3 已结项（2026-06-02）· 交付 `make_plan` + `--plan-first` + 文档  
+> **策略**：先设计 coding 链路深度，**暂缓** benchmark 量化。Skill 加载见 [**Phase 4**](./phase4.md)。
 
 ---
 
@@ -24,17 +24,16 @@
 | P3-MAKE-PLAN | ✅ |
 | P3-DOCS | ✅ |
 | P3-REVIEW | ✅ |
-| P3-WALKTHROUGH | ✅（中文说明 + 注释整理） |
 
 | 交付 | 说明 |
 |------|------|
 | `make_plan` | `planning.py` + `agent.py`；单次 complete；`memory.plan` |
 | `--plan-first` | 本轮 ask 内须先成功 plan 再 risky tool |
-| 文档 | `README.md` § Task Planning；[`PHASE3-WALKTHROUGH-zh.md`](../PHASE3-WALKTHROUGH-zh.md) |
+| 文档 | [`README.md`](../README.md) § Task Planning |
 | 测试 | 53 passed, 1 skipped |
 | 验收 | [`feedback/P3-REVIEW.md`](../feedback/P3-REVIEW.md) |
 
-**实现备注（用户整理后）**：规划 prompt 与工具返回以**中文**为主（成功前缀 `规划成功`）；JSON **字段名英文、值建议中文**；全包注释/REPL 帮助汉化，行为与 P3-REVIEW 一致。
+**文案规范**：全包用户可见字符串已按 [`04-user-facing-locale.md`](./04-user-facing-locale.md)（铁律 §7）中文化；规划成功前缀 `规划成功`；JSON **字段名英文、值建议中文**。行为与 P3-REVIEW 一致。
 
 ---
 
@@ -45,8 +44,8 @@
 | 优先级 | 方向 | TASK_ID | 说明 |
 |--------|------|---------|------|
 | **P0** | 任务规划工具 | P3-MAKE-PLAN | ✅ 已完成 |
-| **P1** | 规划与执行衔接 | （待定） | plan 持久可见；主循环能对照 plan 执行（不自动编排） |
-| **P2** | `run_shell` 可选阻断 | （待定） | 在 Phase 2 审计告警之上，可选拒绝危险命令 |
+| **暂缓** | 规划与执行衔接 | — | 非 Phase 3 交付范围；需时另立项 |
+| **暂缓** | `run_shell` 可选阻断 | — | 见 [`phase2.md`](./phase2.md) §5；非 Phase 3 交付范围 |
 | **暂缓** | benchmark / 回归任务集 | — | 等 coding 链路设计稳后再量化 |
 
 ### 2.2 Out of Scope
@@ -70,7 +69,6 @@
 | 6 | benchmark | **暂缓**，不进 Phase 3 近期交付 |
 
 ---
-
 ## 3. P3-MAKE-PLAN Done Definition
 
 首项验收以 [`command/P3-MAKE-PLAN.md`](../command/P3-MAKE-PLAN.md) 为准；摘要如下：
@@ -117,17 +115,19 @@
 
 - 首版无步骤完成度追踪，靠 memory + 模型自觉
 - plan 质量依赖模型与 planning prompt，暂无 benchmark 打分
-- `--plan-first` 已落地；每轮 `ask()` 重置 satisfied（见 WALKTHROUGH）
+- `--plan-first` 已落地；每轮 `ask()` 重置 satisfied
 
 ---
 
-## 6. 后续项（Phase 3 内 · 未派活）
+## 6. 可选后续（未纳入 Phase 3 结项）
 
-| 优先级 | 方向 | 说明 |
-|--------|------|------|
-| P1 | 规划与执行衔接 | 例如在 notes/final 中对照 step id；或轻量「当前 step」memory 字段 |
-| P2 | Shell 审计 → 可选阻断 | 见 [`phase2.md`](./phase2.md) §5 |
-| 暂缓 | benchmark | 自建小任务集 + 自动评分；设计稳后再做 |
+| 方向 | 说明 |
+|------|------|
+| 规划与执行衔接 | 例如在 notes/final 中对照 step id；或轻量「当前 step」memory 字段 |
+| Shell 审计 → 可选阻断 | 见 [`phase2.md`](./phase2.md) §5 |
+| benchmark | 自建小任务集 + 自动评分 |
+
+**Skill 加载**已划入 [**Phase 4**](./phase4.md)（P4-SKILLS）。
 
 Phase 1/2 范围内优化仍见各 `phase*.md` §5，不拆独立大阶段。
 
@@ -147,8 +147,7 @@ Phase 1/2 范围内优化仍见各 `phase*.md` §5，不拆独立大阶段。
 | 工具/门控/memory | `mini_coding_agent/agent.py`（Task Planning、`memory_text`、门控） |
 | CLI | `mini_coding_agent/cli.py`（`--plan-first`） |
 | 测试 | `tests/test_mini_coding_agent.py`（Phase 3 段） |
-| 中文说明 | [`docs/PHASE3-WALKTHROUGH-zh.md`](../PHASE3-WALKTHROUGH-zh.md) |
-| 英文说明 | [`README.md`](../README.md) § Task Planning |
+| 用户说明 | [`README.md`](../README.md) § Task Planning |
 | 派活/验收 | [`command/`](../command/) · [`feedback/`](../feedback/) |
 
 ---
@@ -160,8 +159,7 @@ Phase 1/2 范围内优化仍见各 `phase*.md` §5，不拆独立大阶段。
 | P3-MAKE-PLAN | 实现 | [`feedback/P3-MAKE-PLAN.md`](../feedback/P3-MAKE-PLAN.md) |
 | P3-DOCS | 文档 | [`feedback/P3-DOCS.md`](../feedback/P3-DOCS.md) |
 | P3-REVIEW | 验收 | [`feedback/P3-REVIEW.md`](../feedback/P3-REVIEW.md) |
-| P3-WALKTHROUGH | 说明+注释 | [`feedback/P3-WALKTHROUGH.md`](../feedback/P3-WALKTHROUGH.md) |
 
 ---
 
-*Phase 3 唯一 struct 文档 · 中文说明见 [`PHASE3-WALKTHROUGH-zh.md`](../PHASE3-WALKTHROUGH-zh.md)*
+*Phase 3 struct 文档 · 下一阶段 [`phase4.md`](./phase4.md)*

@@ -1,6 +1,8 @@
 # command — 子 Agent 任务单
 
-主 Agent **只下达目标、约束、验收标准**；具体设计由子 Agent 完成。`struct/` 仅保留大阶段文档：`phase1.md`、`phase2.md`、`phase3.md`。
+主 Agent **只下达目标、约束、验收标准**；具体设计由子 Agent 完成。`struct/` 大阶段文档：`phase1.md` … `phase4.md`。
+
+**工程规范**：各 Phase `OVERVIEW` §3 均引用铁律 §7 — 用户可见文案中文，详见 [`struct/04-user-facing-locale.md`](../struct/04-user-facing-locale.md)。
 
 ---
 
@@ -29,7 +31,7 @@ Phase 2 分两次派活，同属一个大阶段；struct 见 [`phase2.md`](../st
 
 ---
 
-## Phase 3 任务（进行中）
+## Phase 3 任务（已结项 ✅）
 
 策略：先 coding 链路深度，benchmark 暂缓。struct 见 [`phase3.md`](../struct/phase3.md)。
 
@@ -39,7 +41,19 @@ Phase 2 分两次派活，同属一个大阶段；struct 见 [`phase2.md`](../st
 | [P3-MAKE-PLAN](./P3-MAKE-PLAN.md) | 任务规划工具 + `--plan-first` | ✅ |
 | [P3-DOCS](./P3-DOCS.md) | README 用户说明 | ✅ |
 | [P3-REVIEW](./P3-REVIEW.md) | Phase 3 首项总验收 | ✅ |
-| [P3-WALKTHROUGH](./P3-WALKTHROUGH.md) | 中文说明 + 代码注释 | ✅ |
+
+---
+
+## Phase 4 任务（进行中）
+
+struct 见 [`phase4.md`](../struct/phase4.md)。
+
+| TASK_ID | 说明 | 状态 |
+|---------|------|------|
+| [PHASE4-OVERVIEW](./PHASE4-OVERVIEW.md) | 总规划（Skill 加载） | — |
+| [P4-SKILLS](./P4-SKILLS.md) | Skill 发现 + 两阶段加载 + `load_skill` + `--skills` | ✅ |
+| [P4-DOCS](./P4-DOCS.md) | README § Skills（Phase 4） | ✅ |
+| [P4-REVIEW](./P4-REVIEW.md) | Phase 4 总验收 | ✅ |
 
 ---
 

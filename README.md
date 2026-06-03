@@ -16,6 +16,7 @@ It is a minimal local agent loop with:
 - **tool-boundary hooks** for observability and extension (`pre_tool` / `post_tool`)
 - **terminal tool trace**, shell audit alerts, and **YAML-configured built-in hooks** (Phase 2.1)
 - **task planning** with structured `make_plan` and optional `--plan-first` (Phase 3)
+- **Skills (Phase 4)** — reusable workflow packs from `.mini-coding-agent/skills/` with two-stage loading (`load_skill`, `--skills`)
 - transcript and memory persistence
 - bounded delegation
 
@@ -475,6 +476,117 @@ Then type your task at the `mini-coding-agent>` prompt.
 - **`--plan-first` is per user message**, not once per session.
 
 &nbsp;
+## Skills (Phase 4)
+
+The agent can discover **reusable workflow packs** (Skills) from your repository. Skills keep long instructions out of the always-on prompt: at startup only **metadata** is listed; the full **body** is loaded on demand.
+
+### Directory layout
+
+Each Skill lives in its own folder under the workspace root:
+
+```text
+.mini-coding-agent/skills/<skill-name>/SKILL.md
+```
+
+Optional frontmatter (YAML) at the top of `SKILL.md`:
+
+| Key | Required | Notes |
+|-----|----------|-------|
+| `name` | No | Defaults to the **directory name** if omitted |
+| `description` | Recommended | Shown in the startup catalog; helps the model decide when to load |
+
+Example:
+
+```yaml
+---
+name: code-review
+description: Review PRs against team standards. Use when the user mentions review, PR, or 审查.
+---
+
+# Code Review
+
+1. Use `read_file` to inspect the change scope
+2. Give graded feedback against acceptance criteria
+```
+
+Files in the Skill folder **besides** `SKILL.md` are **not** auto-loaded. Reference them in the body and let the agent `read_file` them when needed.
+
+**Templates in this repo:**
+
+- [`.mini-coding-agent/skills/README.md`](.mini-coding-agent/skills/README.md) — directory guide (Chinese)
+- [`.mini-coding-agent/skills/SKILL.md.template`](.mini-coding-agent/skills/SKILL.md.template) — copy to start a new Skill
+- [`.mini-coding-agent/skills/example-skill/SKILL.md`](.mini-coding-agent/skills/example-skill/SKILL.md) — runnable example (`--skills example-skill`)
+
+If the skills directory is missing or empty, the agent starts normally with an empty catalog. A single broken Skill file is skipped with a stderr warning; other Skills still load.
+
+### Two-stage loading
+
+| Stage | What enters the prompt | When |
+|-------|------------------------|------|
+| **1 — Catalog** | `name` + `description` only | Agent startup / resume (`build_prefix`) |
+| **2 — Body** | Full SKILL.md body (frontmatter stripped) | Model calls `load_skill`, or CLI `--skills` preloads at build time |
+
+Stage 1 never includes Skill body text. Stage 2 writes into session memory (see below).
+
+### `load_skill` vs `make_plan` vs `delegate`
+
+- **`load_skill`** — loads a **reusable domain workflow** from a checked-in `SKILL.md` into session memory.
+- **`make_plan`** — produces a **one-off task breakdown** (JSON steps) for the current user goal.
+- **`delegate`** — runs a bounded **read-only sub-agent** to investigate (multi-step tools).
+
+These are **parallel** capabilities; none replaces the others. File writes and shell commands still go through Phase 1 change governance and Phase 2 hooks.
+
+### Tool: `load_skill`
+
+| Item | Detail |
+|------|--------|
+| Risk | **Safe** — no approval prompt; does not write files or run shell |
+| Parameters | `name` (required) — Skill name as shown in the startup catalog |
+| Call format | `<tool>{"name":"load_skill","args":{"name":"code-review"}}</tool>` |
+
+On success the tool returns a short confirmation and a `<skill_body>...</skill_body>` block. The body is also stored in session memory. Unknown names return a clear error string and **do not** update memory. Loading the same name again **overwrites** the stored body (re-reads from disk).
+
+### Loaded skills in session memory
+
+Successful loads are saved under:
+
+```text
+.mini-coding-agent/sessions/<session-id>.json  →  memory.loaded_skills
+```
+
+Each entry holds `name`, `description`, and `body`. Working memory (`memory_text()`) includes a summary and the loaded bodies in later prompts. In the REPL, run **`/memory`** to inspect the current task, plan summary (if any), **loaded skills**, tracked files, and notes.
+
+**`/reset`** clears `loaded_skills` along with history, plan, and other memory fields.
+
+Skills are **not** written to a separate file on disk beyond the session JSON.
+
+### CLI: `--skills`
+
+Comma-separated Skill names to **preload at agent startup** (stage 2 without waiting for the model):
+
+```bash
+uv run mini-coding-agent --skills example-skill "Explain how Skills work in this repo"
+```
+
+Multiple Skills:
+
+```bash
+uv run mini-coding-agent --skills code-review,example-skill --approval ask "Review README changes"
+```
+
+Works alongside **`--plan-first`** — for example, preload a workflow Skill and still require `make_plan` before risky tools in each turn.
+
+Unknown names in `--skills` print a stderr warning; known names are still preloaded.
+
+### Known limitations (Phase 4)
+
+- **No hot reload.** The catalog is scanned at agent startup / resume; editing `SKILL.md` on disk is picked up on the next `load_skill` call (body is re-read from file), but the prefix catalog updates only after restart.
+- **MVP frontmatter only.** Advanced fields (e.g. `allowed-tools`, dynamic shell injection) are not supported.
+- **No REPL slash commands** such as `/code-review`; use `load_skill` or `--skills`.
+- **No `.claude/skills` compatibility** — only `.mini-coding-agent/skills/`.
+- **Child agents do not inherit** the parent session’s `loaded_skills`; each agent has its own memory.
+
+&nbsp;
 ## Sessions and Resume
 
 The agent saves sessions under the target workspace root in:
@@ -506,11 +618,11 @@ being sent to the model as a normal task.
 - `/help`
   shows the list of available interactive commands
 - `/memory`
-  prints the distilled session memory, including the current task, **plan summary** (if any), tracked files, and notes
+  prints the distilled session memory, including the current task, **plan summary** (if any), **loaded skills** (if any), tracked files, and notes
 - `/session`
   prints the path to the current saved session JSON file
 - `/reset`
-  clears the current session history and distilled memory but keeps you in the REPL
+  clears the current session history and distilled memory (including plan and loaded skills) but keeps you in the REPL
 - `/exit`
   exits the interactive session
 - `/quit`
@@ -564,6 +676,8 @@ Important flags:
   disable shell pattern audit hook (overrides `hooks.yaml`)
 - `--plan-first`
   require a successful `make_plan` in each user request before the first risky tool (`write_file`, `patch_file`, `run_shell`); default: off
+- `--skills`
+  comma-separated Skill names to preload into session memory at startup (e.g. `code-review,example-skill`); default: none
 
 &nbsp;
 ## Example

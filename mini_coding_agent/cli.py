@@ -12,6 +12,13 @@ from mini_coding_agent.util import middle
 from mini_coding_agent.workspace import WorkspaceContext
 
 
+def _parse_skills_arg(raw):
+    """解析 CLI --skills 逗号分隔列表；空/None 返回 []。"""
+    if not raw:
+        return []
+    return [part.strip() for part in str(raw).split(",") if part.strip()]
+
+
 # 在控制台打印界面
 def build_welcome(agent, model, host):
     width = max(68, min(shutil.get_terminal_size((80, 20)).columns, 84))
@@ -91,6 +98,8 @@ def build_agent(args):
         hook_config=hook_config,
         # Phase 3: --plan-first → 每条 ask 须先成功 make_plan 再允许 risky tool
         plan_first=args.plan_first,
+        # Phase 4: --skills 逗号分隔预加载
+        preload_skills=_parse_skills_arg(args.skills),
     )
     if session_id == "latest":
         session_id = store.latest()
@@ -159,6 +168,12 @@ def build_arg_parser():
         "--plan-first",
         action="store_true",
         help="每条 ask() 须先成功 make_plan，再允许 write_file、patch_file、run_shell。",
+    )
+    # Phase 4: 构建 Agent 时预加载 Skill 正文到 session memory
+    parser.add_argument(
+        "--skills",
+        default=None,
+        help="逗号分隔的 skill 名；Agent 构建时预加载对应 SKILL.md 正文。",
     )
     return parser
 

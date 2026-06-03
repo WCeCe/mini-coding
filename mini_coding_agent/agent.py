@@ -13,6 +13,12 @@ from mini_coding_agent.planning import (
     parse_plan_response,
     plan_summary_text,
 )
+from mini_coding_agent.skills import (
+    SkillCatalog,
+    emit_skill_warnings,
+    format_load_skill_result,
+    loaded_skills_summary,
+)
 from mini_coding_agent.hooks.hook_config import default_hook_config, emit_config_warnings, load_hook_config
 from mini_coding_agent.hooks import HookRegistry, ToolHookContext, register_builtin_hooks
 from mini_coding_agent.session import CheckpointStore
@@ -46,6 +52,8 @@ class MiniAgent:
         hook_config=None,
         # Phase 3: CLI --plan-first；是否需要先plan
         plan_first=False,
+        # Phase 4: CLI --skills 预加载的 skill 名列表
+        preload_skills=None,
     ):
         self.model_client = model_client
         self.workspace = workspace
@@ -58,6 +66,10 @@ class MiniAgent:
         self.max_depth = max_depth
         self.read_only = read_only
         self.plan_first = plan_first
+        self.preload_skills = list(preload_skills or [])
+        # Phase 4: 启动/resume 时扫描 skills 目录（目录缺失不 fatal）
+        self.skill_catalog, skill_scan_warnings = SkillCatalog.scan(self.root)
+        emit_skill_warnings(skill_scan_warnings)
         # 首先要是在--plan_first的命令前提下，如果_ask_plan_satisfied为false，就禁止使用写等危险操作
         #只能读或者是执行plan，在plan后会将其改为true，此时就允许危险操作了。
         self._ask_plan_satisfied = False
@@ -90,8 +102,13 @@ class MiniAgent:
             #files只存文件相关的操作tool
             #notes是最近所有操作，包括final的结果
             # plan: Phase 3 成功的make_plan 的结构化 JSON（dict 或 None）
-            "memory": {"task": "", "files": [], "notes": [], "plan": None},
+            # loaded_skills: Phase 4 已加载 Skill 正文（name -> {name, description, body}）
+            "memory": {"task": "", "files": [], "notes": [], "plan": None, "loaded_skills": {}},
         }
+        self._ensure_memory_shape()
+        # Phase 4: CLI --skills 预加载（未知名 warn，已知项仍加载）
+        preload_warnings = self._preload_skills(self.preload_skills)
+        emit_skill_warnings(preload_warnings)
         #构建tools
         self.tools = self.build_tools()
         #构建prompt的prefix部分
@@ -179,6 +196,13 @@ class MiniAgent:
                 "description": "生成结构化任务级计划（单次 make_plan 调用，无内部 tool 循环）。",
                 "run": self.tool_make_plan,
             },
+            # Phase 4: 按需加载 Skill 正文到 session memory（safe；observe-only）
+            "load_skill": {
+                "schema": {"name": "str"},
+                "risky": False,
+                "description": "加载仓库 Skill 正文到 session memory（启动时 prefix 仅含 metadata 清单）。",
+                "run": self.tool_load_skill,
+            },
         }
         #max_depth为1，只允许调用一层子Agent，子Agent不能继续往下调用；且子Agent只读
         if self.depth < self.max_depth:
@@ -214,6 +238,7 @@ class MiniAgent:
                 '<tool name="patch_file" path="binary_search.py"><old_text>return -1</old_text><new_text>return mid</new_text></tool>',
                 '<tool>{"name":"run_shell","args":{"command":"uv run --with pytest python -m pytest -q","timeout":20}}</tool>',
                 '<tool>{"name":"make_plan","args":{"goal":"add tests for module X","context":"read README first"}}</tool>',
+                '<tool>{"name":"load_skill","args":{"name":"code-review"}}</tool>',
                 "<final>Done.</final>",
             ]
         )
@@ -234,10 +259,12 @@ class MiniAgent:
             "- 写测试时匹配当前实现，除非用户明确要求改代码。",
             "- 新建文件应完整可运行，包含必要 import。",
             "- 同一参数重复调用无效工具时，换工具或返回 <final>。",
-            "- 必填工具参数不能为空。不得用空 args 调用 read_file、write_file、patch_file、run_shell、delegate、make_plan。",
+            "- 必填工具参数不能为空。不得用空 args 调用 read_file、write_file、patch_file、run_shell、delegate、make_plan、load_skill。",
             "- 多文件改动、需求含糊或用户要求规划时：先用 read_file/search 调查，再 make_plan，再执行 risky 工具（write_file、patch_file、run_shell）。",
             "- delegate = 有界只读子 Agent 调查；make_plan = 单次结构化任务拆分（不能替代 delegate）。",
         ])
+        # Phase 4: 阶段一 Skill metadata 清单（不含 SKILL.md 正文）
+        skills_text = self.skill_catalog.metadata_block()
         #构建prompt的prefix部分，prefix又分为五个部分：
         #1.You are Mini-Coding-Agent...
         #2. 规则：Rules: + rules
@@ -249,6 +276,7 @@ class MiniAgent:
             "规则：\n" + rules,
             "工具：\n" + tool_text,
             "有效响应示例：\n" + examples,
+            skills_text,
             self.workspace.text(),
         ])
 
@@ -262,12 +290,23 @@ class MiniAgent:
             plan_block = "\n".join(f"  {line}" for line in plan_lines)
         else:
             plan_block = "  - 无"
+        # Phase 4: 已加载 Skill 摘要 + 正文（进入后续 prompt）
+        loaded = memory.get("loaded_skills") or {}
+        loaded_lines = [loaded_skills_summary(loaded)]
+        for skill_name in sorted(loaded.keys()):
+            item = loaded[skill_name]
+            if isinstance(item, dict) and item.get("body"):
+                body = str(item["body"]).strip()
+                loaded_lines.append(f"  [{skill_name} 正文]\n{body}")
+        loaded_block = "\n".join(loaded_lines)
         return "\n".join([
             "记忆：",
             f"- task: {memory['task'] or '-'}",
             f"- files: {', '.join(memory['files']) or '-'}",
             "- plan:",
             plan_block,
+            "- loaded_skills:",
+            loaded_block,
             "- notes:",
             notes,
         ])
@@ -525,6 +564,7 @@ class MiniAgent:
             "patch_file": '<tool name="patch_file" path="binary_search.py"><old_text>return -1</old_text><new_text>return mid</new_text></tool>',
             "delegate": '<tool>{"name":"delegate","args":{"task":"inspect README.md","max_steps":3}}</tool>',
             "make_plan": '<tool>{"name":"make_plan","args":{"goal":"add unit tests","context":"scanned src/"}}</tool>',
+            "load_skill": '<tool>{"name":"load_skill","args":{"name":"code-review"}}</tool>',
         }
         return examples.get(name, "")
 
@@ -601,6 +641,13 @@ class MiniAgent:
             goal = str(args.get("goal", "")).strip()
             if not goal:
                 raise ValueError("参数 goal 不能为空")
+            return
+
+        # Phase 4: load_skill 只校验 name
+        if name == "load_skill":
+            skill_name = str(args.get("name", "")).strip()
+            if not skill_name:
+                raise ValueError("参数 name 不能为空")
             return
 
     # 处理写文件和patch文件的治理主流程
@@ -832,12 +879,61 @@ class MiniAgent:
 
 
 
+    ###############################################
+    #### 8) Skills (Phase 4) ######################
+    ###############################################
+    def _ensure_memory_shape(self):
+        """旧 session 兼容：补齐 memory.loaded_skills 等 Phase 4 字段。"""
+        memory = self.session.setdefault("memory", {})
+        memory.setdefault("task", "")
+        memory.setdefault("files", [])
+        memory.setdefault("notes", [])
+        memory.setdefault("plan", None)
+        memory.setdefault("loaded_skills", {})
+
+    def _preload_skills(self, names):
+        """CLI --skills 预加载；失败项收集 warn，不阻止 Agent 启动。"""
+        warnings = []
+        for raw_name in names:
+            name = str(raw_name).strip()
+            if not name:
+                continue
+            result = self._load_skill_into_memory(name)
+            if result.startswith("错误："):
+                warnings.append(f"预加载 Skill '{name}' 失败：{result}")
+        return warnings
+
+    def _load_skill_into_memory(self, name):
+        """阶段二：读 SKILL.md 正文写入 memory.loaded_skills；成功/失败均返回工具结果字符串。"""
+        body, err = self.skill_catalog.read_body(name)
+        if err:
+            return err
+        entry = self.skill_catalog.get(name)
+        self.session["memory"]["loaded_skills"][name] = {
+            "name": name,
+            "description": entry.description,
+            "body": body,
+        }
+        self.session_path = self.session_store.save(self.session)
+        return format_load_skill_result(name, entry.description, body)
+
+    def tool_load_skill(self, args):
+        """safe 工具：加载 Skill 正文；重复加载同名 Skill 覆盖（幂等）。"""
+        name = str(args.get("name", "")).strip()
+        return self._load_skill_into_memory(name)
+
     #重置会话
     def reset(self):
         #清空历史记录
         self.session["history"] = []
-        #清空记忆（含 Phase 3 memory.plan）
-        self.session["memory"] = {"task": "", "files": [], "notes": [], "plan": None}
+        #清空记忆（含 Phase 3 memory.plan、Phase 4 loaded_skills）
+        self.session["memory"] = {
+            "task": "",
+            "files": [],
+            "notes": [],
+            "plan": None,
+            "loaded_skills": {},
+        }
         #保存会话
         self.session_store.save(self.session)
 

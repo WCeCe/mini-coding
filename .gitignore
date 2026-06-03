@@ -20,8 +20,10 @@ dist/
 .coverage
 htmlcov/
 
-# Temporary files
-.mini-coding-agent
+# Temporary files (sessions, hooks overrides); commit skills templates under skills/
+.mini-coding-agent/*
+!.mini-coding-agent/skills/
+!.mini-coding-agent/skills/**
 *.tmp
 *.temp
 *.swp

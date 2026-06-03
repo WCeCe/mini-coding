@@ -1,0 +1,35 @@
+---
+# 必填：frontmatter 键名保持英文
+# name: 可选；缺省则使用本目录名（小写、连字符，如 my-skill）
+name: my-skill
+# description: 强烈建议填写；模型靠它判断是否应 load_skill（写清 WHAT + WHEN）
+description: 简要说明本 Skill 做什么、在什么场景下使用（第三人称、含触发词）。
+---
+
+# Skill 标题（正文使用中文）
+
+## 何时使用
+
+- 用户提到 … 时
+- 需要 … 工作流时
+
+## 步骤
+
+1. 先用 `read_file` / `search` 获取事实，不要猜测仓库内容
+2. …
+3. …
+
+## 输出格式（可选）
+
+```markdown
+## 结果
+- …
+```
+
+## 明确不做（可选）
+
+- …
+
+## 附加资源（可选）
+
+若本目录还有 `reference.md` 等文件，在此说明路径；Agent 不会自动加载，需 `read_file` 读取。

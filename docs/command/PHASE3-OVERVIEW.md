@@ -46,6 +46,7 @@
 | 结构 | 改动跟着功能走；不顺手空重构 |
 | 改动 | 最小必要 diff |
 | 注释 | **保留**既有用户注释；**新增**代码带适量注释（铁律 §5–§6） |
+| 用户可见文案 | **中文**；工具名/参数名/JSON 字段/协议标签保持英文（铁律 §7 · [`struct/04-user-facing-locale.md`](../struct/04-user-facing-locale.md)） |
 | 测试 | 新行为有 pytest；`FakeModelClient`；不依赖 Ollama |
 | 验证 | `python -m pytest -q`、`python -m ruff check .` |
 | Git | 不 `commit` / `push`（除非用户明确要求） |
@@ -62,10 +63,9 @@
 | [P3-MAKE-PLAN](./P3-MAKE-PLAN.md) | `make_plan` + memory + `--plan-first` + 测试 | 是 | ✅ |
 | [P3-DOCS](./P3-DOCS.md) | README 用户说明 | 否 | ✅ |
 | [P3-REVIEW](./P3-REVIEW.md) | Phase 3 首项总验收 | 否 | ✅ |
-| [P3-WALKTHROUGH](./P3-WALKTHROUGH.md) | 中文说明 + 代码注释 | 是（仅注释） | ✅ |
 
-**建议顺序**：MAKE-PLAN → DOCS → REVIEW → WALKTHROUGH（说明可并行 DOCS 后整理）。  
-**用户文档**：[`docs/PHASE3-WALKTHROUGH-zh.md`](../PHASE3-WALKTHROUGH-zh.md)
+**Phase 3 已结项**。下一阶段 Skill 见 [PHASE4-OVERVIEW](./PHASE4-OVERVIEW.md) · [P4-SKILLS](./P4-SKILLS.md)。  
+**用户文档**：[`README.md`](../../README.md) § Task Planning (Phase 3)
 
 ---
 

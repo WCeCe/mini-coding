@@ -15,6 +15,8 @@ mini-coding-agent-main/
 
 运行时 session：`<repo_root>/.mini-coding-agent/sessions/<id>.json`
 
+**用户可见文案**：中文为主；工具名/参数/JSON 字段/`<tool>` 协议保持英文。见 [`04-user-facing-locale.md`](./04-user-facing-locale.md)（铁律 §7）。
+
 ---
 
 ## 2. 六大组件
@@ -58,6 +60,7 @@ while tool_steps < max_steps and attempts < max_attempts:
 | `patch_file` | **是** | `old_text` 唯一匹配 |
 | `delegate` | 否 | 子 Agent；`depth < max_depth` 才注册 |
 | `make_plan` | 否 | 单次规划调用；结构化任务拆分；写入 `memory.plan` |
+| `load_skill` | 否 | 加载 `.mini-coding-agent/skills/` Skill 正文 → `memory.loaded_skills` |
 
 ### 审批 `approval_policy`
 
@@ -122,7 +125,24 @@ run_tool → validate → _execute_tool_after_validation
 
 **与 delegate：** `planning.py` 独立模块；`make_plan` 全 depth 可用；`delegate` 仅 `depth < max_depth`。
 
-详见 [`phase3.md`](./phase3.md) · [`PHASE3-WALKTHROUGH-zh.md`](../PHASE3-WALKTHROUGH-zh.md)
+详见 [`phase3.md`](./phase3.md) · [`README.md`](../README.md) § Task Planning
+
+---
+
+## 9. Phase 4 Skill 热点（P4-SKILLS ✅）
+
+**Skill 目录：** `<repo_root>/.mini-coding-agent/skills/<name>/SKILL.md`
+
+**两阶段加载：**
+
+```
+SkillCatalog.scan → build_prefix metadata 清单
+load_skill(name) / CLI --skills → memory.loaded_skills → memory_text()
+```
+
+**模块：** `mini_coding_agent/skills.py` · **工具：** `load_skill`（safe）
+
+详见 [`phase4.md`](./phase4.md) · [`feedback/P4-SKILLS.md`](../feedback/P4-SKILLS.md)
 
 ---
 

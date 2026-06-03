@@ -49,9 +49,13 @@
 
 含：工具边界 Hook、包重构、终端 trace、shell 审计、YAML 配置。详见 [`phase2.md`](./phase2.md)。
 
-### Phase 3 — 任务规划 + coding 链路深度 🚧
+### Phase 3 — 任务规划 + coding 链路深度 ✅
 
-首项（`make_plan` + `--plan-first` + README）✅ 已结项。benchmark 量化暂缓。详见 [`phase3.md`](./phase3.md)。
+`make_plan` + `--plan-first` + 文档已结项。benchmark 量化暂缓。详见 [`phase3.md`](./phase3.md)。
+
+### Phase 4 — Skill 加载与可扩展工作流 ✅
+
+P4-SKILLS + P4-DOCS + P4-REVIEW 已结项。详见 [`phase4.md`](./phase4.md)。
 
 ---
 
@@ -63,6 +67,7 @@
 4. **新行为必有 pytest** — 用 `FakeModelClient`，不依赖 Ollama。
 5. **保留用户注释** — 除非对应代码逻辑**完全删除**，否则不得随意删改既有注释；重构迁代码时须一并带走注释，过时注释可改措辞但勿静默移除。
 6. **新增代码须有注释** — 生成或改动的代码应带**适量**注释，说明模块职责、非显而易见的设计选择与关键分支；服务于可读性，不堆砌废话，也不写逐行机械解说。
+7. **用户可见文案用中文** — 面向用户与模型的说明性文字（prompt 规则、工具 description、错误/成功返回、`ValueError` 文案、CLI help、审批提示、REPL 帮助等）使用**中文**；**工具名、参数名、JSON 字段名、`<tool>`/`<final>` 协议标签**等代码/协议标识保持**英文**。细则见 [`04-user-facing-locale.md`](./04-user-facing-locale.md)。
 
 ---
 

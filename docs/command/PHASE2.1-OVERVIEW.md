@@ -48,6 +48,7 @@
 | 结构 | 在 `mini_coding_agent/` 包内扩展；不空重构 |
 | 改动 | 最小 diff；不顺手改无关逻辑 |
 | 注释 | **保留**：除非逻辑完全删除，否则保留既有用户注释。**新增**：生成/改动的代码须带适量注释，保证可读性 |
+| 用户可见文案 | 中文；协议标识英文（铁律 §7 · [`struct/04-user-facing-locale.md`](../struct/04-user-facing-locale.md)） |
 | 测试 | Phase 1/2 全绿；2.1 新行为有 pytest；`FakeModelClient` |
 | 验证 | `python -m pytest -q`、`python -m ruff check .` |
 | Git | 不 `commit` / `push`（除非用户明确要求） |

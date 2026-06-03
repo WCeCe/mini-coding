@@ -8,13 +8,11 @@
 
 | 目录 | 维护者 | 内容 | 何时更新 |
 |------|--------|------|----------|
-| [`struct/`](./struct/) | **主 Agent** | 构想、边界、契约、Done Definition | 战略/阶段变化时 |
+| [`struct/`](./struct/) | **主 Agent** | 构想、边界、契约、Done Definition、**用户可见文案中文规范**（[`04-user-facing-locale`](./struct/04-user-facing-locale.md)） | 战略/阶段变化时 |
 | [`command/`](./command/) | **主 Agent** | **目标级**任务（不含实现步骤） | 派活时 |
 | [`feedback/`](./feedback/) | **子 Agent → 主 Agent 审** | 任务完成后的回报文档 | 子 Agent 完成后新增文件 |
 | [`my_research/`](./my_research/) | **用户** | 根据主 Agent 构思自行调研的笔记 | 用户调研过程中 |
-| 根目录说明 | **主 Agent** | Phase 3 中文 walkthrough 等 | 阶段交付时 |
-
-**Phase 3 中文说明**：[`PHASE3-WALKTHROUGH-zh.md`](./PHASE3-WALKTHROUGH-zh.md)
+| 根目录说明 | **主 Agent** | 阶段交付说明等 | 阶段交付时 |
 
 ---
 
@@ -51,8 +49,9 @@
 
 - **Phase 1**：✅ 变更治理
 - **Phase 2**：✅ Hook + 可观测 + 重构（含终端 trace、shell 审计、YAML）
-- **阶段记录**（大阶段各一份）：[`phase1`](./struct/phase1.md) · [`phase2`](./struct/phase2.md) · [`phase3`](./struct/phase3.md)
-- **Phase 3**：🚧 首项 ✅ · 中文说明 [`PHASE3-WALKTHROUGH-zh`](./PHASE3-WALKTHROUGH-zh.md) · struct [`phase3`](./struct/phase3.md)
+- **阶段记录**（大阶段各一份）：[`phase1`](./struct/phase1.md) · [`phase2`](./struct/phase2.md) · [`phase3`](./struct/phase3.md) · [`phase4`](./struct/phase4.md)
+- **Phase 3**：✅ 已结项 · 用户说明见根目录 [`README.md`](../README.md) § Task Planning
+- **Phase 4**：✅ 已结项 · struct [`phase4`](./struct/phase4.md)
 
 ---
 
@@ -63,4 +62,4 @@
 
 ---
 
-*文档体系 v3 · 大阶段：phase1 / phase2 / phase3*
+*文档体系 v4 · 大阶段：phase1 / phase2 / phase3 / phase4*
