@@ -58,6 +58,7 @@
 ## 代码与使用说明
 
 - 运行与安装：[`../README.md`](../README.md)
+- **Agent 重构**：✅ [`refactor-agent`](./struct/refactor-agent.md) · [`02-codebase-reference`](./struct/02-codebase-reference.md)
 - 源代码：[`../mini_coding_agent/`](../mini_coding_agent/)（包）+ [`../mini_coding_agent.py`](../mini_coding_agent.py)（CLI 入口）
 
 ---

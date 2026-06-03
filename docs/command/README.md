@@ -57,6 +57,23 @@ struct 见 [`phase4.md`](../struct/phase4.md)。
 
 ---
 
+## Agent 重构（非 Phase · 进行中）
+
+`agent.py` 模块拆分 R1→R4。struct 见 [`refactor-agent.md`](../struct/refactor-agent.md)。
+
+| TASK_ID | 说明 | 状态 |
+|---------|------|------|
+| [REFACTOR-OVERVIEW](./REFACTOR-OVERVIEW.md) | 总规划 | — |
+| [R1-PROTOCOL-EXTRACT](./R1-PROTOCOL-EXTRACT.md) | `protocol.py` | ✅ |
+| [R2-GOVERNANCE-EXTRACT](./R2-GOVERNANCE-EXTRACT.md) | `governance.py` + dead path | ✅ |
+| [R3-PROMPT-EXTRACT](./R3-PROMPT-EXTRACT.md) | `prompt.py` | ✅ |
+| [R4-TOOLS-EXTRACT](./R4-TOOLS-EXTRACT.md) | `tools/` | ✅ |
+| [REFACTOR-REVIEW](./REFACTOR-REVIEW.md) | 总验收 + 02 更新 | ✅ |
+
+> **注释要求**：重构时尽量保留用户既有注释；迁代码时带走；见 OVERVIEW §3。
+
+---
+
 ## 新任务
 
 复制 [`TEMPLATE.md`](./TEMPLATE.md)。

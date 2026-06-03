@@ -450,7 +450,7 @@ def test_write_failure_rolls_back_new_file(tmp_path):
     agent = build_agent(tmp_path, [], approval_policy="auto")
     target = tmp_path / "fail.py"
 
-    with patch("mini_coding_agent.agent.atomic_write_text", side_effect=OSError("disk full")):
+    with patch("mini_coding_agent.governance.atomic_write_text", side_effect=OSError("disk full")):
         result = agent.run_tool("write_file", {"path": "fail.py", "content": "boom\n"})
 
     assert "错误：工具 write_file 执行失败" in result
@@ -465,7 +465,7 @@ def test_patch_failure_restores_original_content(tmp_path):
     agent = build_agent(tmp_path, [], approval_policy="auto")
 
     with patch(
-        "mini_coding_agent.agent.atomic_write_text",
+        "mini_coding_agent.governance.atomic_write_text",
         side_effect=[OSError("disk full"), None],
     ):
         result = agent.run_tool(
@@ -695,7 +695,7 @@ def test_shell_audit_warns_and_records_without_blocking(tmp_path, capsys):
     agent = build_agent(tmp_path, [], approval_policy="auto")
     completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="ok", stderr="")
 
-    with patch("mini_coding_agent.agent.subprocess.run", return_value=completed):
+    with patch("mini_coding_agent.tools.implementations.subprocess.run", return_value=completed):
         result = agent.run_tool("run_shell", {"command": "rm -rf /tmp/demo", "timeout": 5})
 
     assert "exit_code: 0" in result
@@ -710,7 +710,7 @@ def test_shell_audit_no_alert_for_safe_command(tmp_path, capsys):
     agent = build_agent(tmp_path, [], approval_policy="auto")
     completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="hi", stderr="")
 
-    with patch("mini_coding_agent.agent.subprocess.run", return_value=completed):
+    with patch("mini_coding_agent.tools.implementations.subprocess.run", return_value=completed):
         agent.run_tool("run_shell", {"command": "echo hi", "timeout": 5})
 
     captured = capsys.readouterr()

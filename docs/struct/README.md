@@ -14,6 +14,7 @@
 6. [`02-codebase-reference.md`](./02-codebase-reference.md) — 代码架构速查
 7. [`03-collaboration-model.md`](./03-collaboration-model.md) — 主/子 Agent 分工
 8. [`04-user-facing-locale.md`](./04-user-facing-locale.md) — 用户可见文案中文规范（铁律 §7）
+9. [`refactor-agent.md`](./refactor-agent.md) — Agent 模块重构（非 Phase）✅
 
 ---
 
@@ -40,3 +41,4 @@
 | Phase 4（Skills + 文档 + REVIEW） | ✅ P4-REVIEW 2026-06-02 |
 | 测试 | 66 passed, 1 skipped |
 | benchmark | 暂缓（设计稳后再量化） |
+| Agent 重构（R1–R4 + REVIEW） | ✅ 2026-06-02 |
