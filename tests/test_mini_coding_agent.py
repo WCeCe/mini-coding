@@ -1072,3 +1072,100 @@ def test_child_agent_has_load_skill(tmp_path):
     )
     assert "load_skill" in child.tools
     assert "shared" in child.skill_catalog.names()
+
+
+@pytest.fixture
+def restore_wait_display():
+    from mini_coding_agent.wait_display import set_wait_display_enabled
+
+    set_wait_display_enabled(True)
+    yield
+    set_wait_display_enabled(True)
+
+
+def test_wait_display_non_tty_prints_static_message(tmp_path, capsys, restore_wait_display, monkeypatch):
+    monkeypatch.setattr("mini_coding_agent.wait_display._stderr_is_tty", lambda: False)
+    agent = build_agent(tmp_path, ["<final>你好。</final>"])
+
+    answer = agent.ask("你好")
+
+    assert answer == "你好。"
+    captured = capsys.readouterr()
+    assert captured.err.strip() == "正在等待模型响应…"
+    assert "\r" not in captured.err
+
+
+def test_wait_display_tty_clears_spinner_line(tmp_path, capsys, restore_wait_display, monkeypatch):
+    import time
+
+    class SlowFakeModelClient(FakeModelClient):
+        def complete(self, prompt, max_new_tokens):
+            time.sleep(0.25)
+            return super().complete(prompt, max_new_tokens)
+
+    monkeypatch.setattr("mini_coding_agent.wait_display._stderr_is_tty", lambda: True)
+    agent = MiniAgent(
+        model_client=SlowFakeModelClient(["<final>完成。</final>"]),
+        workspace=build_workspace(tmp_path),
+        session_store=SessionStore(tmp_path / ".mini-coding-agent" / "sessions"),
+        approval_policy="auto",
+    )
+
+    answer = agent.ask("请回答")
+
+    assert answer == "完成。"
+    captured = capsys.readouterr()
+    # capsys 会保留 TTY spinner 的中间帧；退出时 _clear_line 以 \r 覆写结尾
+    assert "\r" in captured.err
+    assert captured.err.endswith("\r")
+
+
+def test_wait_display_during_make_plan(tmp_path, capsys, restore_wait_display, monkeypatch):
+    monkeypatch.setattr("mini_coding_agent.wait_display._stderr_is_tty", lambda: False)
+    plan_payload = json.dumps(_sample_plan("add logging"))
+    agent = build_agent(tmp_path, [plan_payload])
+
+    agent.run_tool("make_plan", {"goal": "add logging"})
+
+    captured = capsys.readouterr()
+    lines = [line for line in captured.err.splitlines() if line.strip()]
+    assert lines[0] == "正在生成任务规划…"
+    assert any("make_plan" in line for line in lines)
+
+
+def test_wait_display_disabled_no_stderr(tmp_path, capsys, restore_wait_display, monkeypatch):
+    from mini_coding_agent.wait_display import set_wait_display_enabled
+
+    monkeypatch.setattr("mini_coding_agent.wait_display._stderr_is_tty", lambda: False)
+    set_wait_display_enabled(False)
+    agent = build_agent(tmp_path, ["<final>静默。</final>"])
+
+    answer = agent.ask("你好")
+
+    assert answer == "静默。"
+    captured = capsys.readouterr()
+    assert captured.err.strip() == ""
+
+
+def test_wait_display_before_trace_display_order(tmp_path, capsys, restore_wait_display, monkeypatch):
+    """模型返回后 spinner 行已清除，trace 行不被 spinner 残留污染。"""
+    monkeypatch.setattr("mini_coding_agent.wait_display._stderr_is_tty", lambda: False)
+    (tmp_path / "hello.txt").write_text("hi\n", encoding="utf-8")
+    agent = build_agent(
+        tmp_path,
+        [
+            '<tool>{"name":"read_file","args":{"path":"hello.txt","start":1,"end":1}}</tool>',
+            "<final>已读取。</final>",
+        ],
+    )
+
+    answer = agent.ask("读取 hello.txt")
+
+    assert answer == "已读取。"
+    captured = capsys.readouterr()
+    lines = [line for line in captured.err.splitlines() if line.strip()]
+    assert lines[0] == "正在等待模型响应…"
+    assert lines[1].startswith("[mini-agent] #1 read_file 成功")
+    assert lines[2] == "正在等待模型响应…"
+    assert all("\r" not in line for line in lines)
+

@@ -33,7 +33,7 @@
 ## 交付物
 
 - 代码/文档路径：
-- 回报：[`feedback/<TASK_ID>.md`](../feedback/)（须含**方案摘要**与**验收自证**）
+- 回报：[`feedback/<TASK_ID>.md`](../feedback/)（须含**方案摘要**、**验收自证**、**完整 pytest/ruff 输出**；子 Agent 一次完成实现与验证，主 Agent 仅复审最终结果）
 
 ---
 

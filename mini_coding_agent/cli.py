@@ -129,7 +129,7 @@ def build_arg_parser():
     )
     parser.add_argument("prompt", nargs="*", help="可选：一次性任务提示（不跟则进入 REPL）。")
     parser.add_argument("--cwd", default=".", help="工作区目录。")
-    parser.add_argument("--model", default="qwen3.5:4b", help="Ollama 模型名称。")
+    parser.add_argument("--model", default="qwen2.5-coder:7b", help="Ollama 模型名称。")
     parser.add_argument("--host", default="http://127.0.0.1:11434", help="Ollama 服务地址。")
     parser.add_argument("--ollama-timeout", type=int, default=300, help="Ollama 请求超时（秒）。")
     parser.add_argument("--resume", default=None, help="恢复的 session id，或 latest。")

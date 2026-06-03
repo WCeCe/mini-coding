@@ -54,6 +54,8 @@ class WorkspaceContext:
                     cwd=cwd,
                     capture_output=True,
                     text=True,
+                    encoding="utf-8",
+                    errors="replace",
                     check=True,
                     timeout=5,
                 )
@@ -121,6 +123,8 @@ class WorkspaceContext:
                     cwd=repo_root,
                     capture_output=True,
                     text=True,
+                    encoding="utf-8",
+                    errors="replace",
                     check=True,
                     timeout=5,
                 )

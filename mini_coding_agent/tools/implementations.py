@@ -10,6 +10,7 @@ from mini_coding_agent.planning import (
     parse_plan_response,
 )
 from mini_coding_agent.util import clip
+from mini_coding_agent.wait_display import MESSAGE_PLAN, complete_with_wait_display
 
 
 def tool_list_files(agent, args):
@@ -52,6 +53,8 @@ def tool_search(agent, args):
             cwd=agent.root,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
         )
         return result.stdout.strip() or result.stderr.strip() or "（无匹配）"
 
@@ -82,6 +85,8 @@ def tool_run_shell(agent, args):
         shell=True,
         capture_output=True,
         text=True,
+        encoding="utf-8",
+        errors="replace",
         timeout=timeout,
     )
     return "\n".join(
@@ -102,7 +107,12 @@ def tool_make_plan(agent, args):
     context = str(args.get("context", "")).strip()
     planning_prompt = build_planning_prompt(goal, context, agent.workspace.text())
     # 专用 complete，只返回相应的json结果，不像其他的工具都是直接执行py，或者是问LLM要哪些工具，但返回的都是<tool>。。
-    raw = agent.model_client.complete(planning_prompt, agent.max_new_tokens)
+    raw = complete_with_wait_display(
+        agent.model_client,
+        planning_prompt,
+        agent.max_new_tokens,
+        message=MESSAGE_PLAN,
+    )
     try:
         plan = parse_plan_response(raw)
     except ValueError as exc:

@@ -74,6 +74,14 @@ struct 见 [`phase4.md`](../struct/phase4.md)。
 
 ---
 
+## UX 优化（非 Phase）
+
+| TASK_ID | 说明 | 状态 |
+|---------|------|------|
+| [OPT-WAIT-DISPLAY](./OPT-WAIT-DISPLAY.md) | 模型 `complete()` 阻塞期间 stderr 单行 spinner | ✅ 2026-06-03 |
+
+---
+
 ## 新任务
 
 复制 [`TEMPLATE.md`](./TEMPLATE.md)。

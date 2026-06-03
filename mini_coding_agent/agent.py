@@ -21,6 +21,7 @@ from mini_coding_agent.tools import run_tool as execute_tool
 from mini_coding_agent.tools.sandbox import path_is_within_root as check_path_in_root
 from mini_coding_agent.tools.sandbox import resolve_path
 from mini_coding_agent.util import clip, now
+from mini_coding_agent.wait_display import MESSAGE_MODEL, complete_with_wait_display
 
 
 class MiniAgent:
@@ -196,7 +197,12 @@ class MiniAgent:
         while tool_steps < self.max_steps and attempts < max_attempts:
             attempts += 1
             #调用模型客户端，生成响应
-            raw = self.model_client.complete(self.prompt(user_message), self.max_new_tokens)
+            raw = complete_with_wait_display(
+                self.model_client,
+                self.prompt(user_message),
+                self.max_new_tokens,
+                message=MESSAGE_MODEL,
+            )
             #解析响应，分为标签和具体内容
             kind, payload = parse(raw)
             #如果kind为tool，则执行工具
