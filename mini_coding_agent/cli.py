@@ -163,6 +163,11 @@ def build_arg_parser():
         action="store_true",
         help="关闭 run_shell 模式审计 Hook（覆盖 hooks.yaml）。",
     )
+    parser.add_argument(
+        "--no-ask-timing",
+        action="store_true",
+        help="关闭 ask 耗时 jsonl 日志（覆盖 hooks.yaml）。",
+    )
     # Phase 3: 强制「先规划再动手」；门控在 agent._execute_tool_after_validation（不替代 --approval）
     parser.add_argument(
         "--plan-first",

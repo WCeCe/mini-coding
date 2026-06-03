@@ -22,6 +22,7 @@ class HookConfig:
     session_trace: bool = True
     trace_display: bool = True
     shell_audit: bool = True
+    ask_timing: bool = True
     shell_warn_patterns: list[str] = field(default_factory=lambda: list(DEFAULT_SHELL_WARN_PATTERNS))
     config_path: Path | None = None
 
@@ -62,6 +63,7 @@ def load_hook_config(path: Path) -> tuple[HookConfig, list[str]]:
         ("session_trace", "session_trace"),
         ("trace_display", "trace_display"),
         ("shell_audit", "shell_audit"),
+        ("ask_timing", "ask_timing"),
     ):
         value = builtin.get(yaml_key)
         if value is None:
@@ -97,6 +99,8 @@ def apply_cli_overrides(config: HookConfig, args) -> HookConfig:
         config.session_trace = False
     if getattr(args, "no_shell_audit", False):
         config.shell_audit = False
+    if getattr(args, "no_ask_timing", False):
+        config.ask_timing = False
     return config
 
 

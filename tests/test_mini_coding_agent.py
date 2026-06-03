@@ -12,6 +12,7 @@ from mini_coding_agent import (
     build_welcome,
 )
 from mini_coding_agent.hooks.hook_config import HookConfig, load_hook_config
+from mini_coding_agent.hooks import HookRegistry
 from mini_coding_agent.planning import PLAN_MAX_STEPS, parse_plan_response, validate_plan
 from mini_coding_agent.skills import SkillCatalog
 
@@ -725,6 +726,7 @@ def test_yaml_missing_uses_defaults(tmp_path):
     assert config.session_trace is True
     assert config.trace_display is True
     assert config.shell_audit is True
+    assert config.ask_timing is True
 
 
 def test_yaml_malformed_fail_open(tmp_path):
@@ -1168,4 +1170,189 @@ def test_wait_display_before_trace_display_order(tmp_path, capsys, restore_wait_
     assert lines[1].startswith("[mini-agent] #1 read_file 成功")
     assert lines[2] == "正在等待模型响应…"
     assert all("\r" not in line for line in lines)
+
+
+def _read_ask_timing_logs(tmp_path, session_id):
+    path = tmp_path / ".mini-coding-agent" / "logs" / f"{session_id}.jsonl"
+    if not path.is_file():
+        return []
+    return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
+
+
+def test_ask_timing_pure_dialog_records_single_llm(tmp_path):
+    agent = build_agent(tmp_path, ["<final>你好！</final>"])
+
+    answer = agent.ask("你好")
+
+    assert answer == "你好！"
+    logs = _read_ask_timing_logs(tmp_path, agent.session["id"])
+    assert len(logs) == 1
+    record = logs[0]
+    assert record["ask_id"] == 1
+    assert record["user_message"] == "你好"
+    assert record["total_ms"] >= 0
+    assert len(record["events"]) == 1
+    assert record["events"][0]["kind"] == "llm"
+    assert record["events"][0]["outcome"] == "final"
+    assert "created_at" in record
+
+
+def test_ask_timing_tool_path_alternates_llm_and_tool(tmp_path):
+    (tmp_path / "hello.txt").write_text("hi\n", encoding="utf-8")
+    agent = build_agent(
+        tmp_path,
+        [
+            '<tool>{"name":"read_file","args":{"path":"hello.txt","start":1,"end":1}}</tool>',
+            "<final>Done.</final>",
+        ],
+    )
+
+    agent.ask("Read hello.txt")
+
+    events = _read_ask_timing_logs(tmp_path, agent.session["id"])[0]["events"]
+    kinds = [event["kind"] for event in events]
+    assert kinds == ["llm", "tool", "llm"]
+    assert events[0]["outcome"] == "tool"
+    assert events[1]["name"] == "read_file"
+    assert events[2]["outcome"] == "final"
+
+
+def test_ask_timing_tool_duration_matches_tool_trace(tmp_path):
+    (tmp_path / "hello.txt").write_text("hi\n", encoding="utf-8")
+    agent = build_agent(
+        tmp_path,
+        [
+            '<tool>{"name":"read_file","args":{"path":"hello.txt","start":1,"end":1}}</tool>',
+            "<final>Done.</final>",
+        ],
+    )
+
+    agent.ask("Read hello.txt")
+
+    trace_ms = agent.session["tool_trace"][0]["duration_ms"]
+    tool_event = next(event for event in _read_ask_timing_logs(tmp_path, agent.session["id"])[0]["events"] if event["kind"] == "tool")
+    assert abs(tool_event["duration_ms"] - trace_ms) < 0.01
+
+
+def test_ask_timing_make_plan_single_tool_no_nested_llm(tmp_path):
+    plan_payload = json.dumps(_sample_plan("add logging"))
+    agent = build_agent(
+        tmp_path,
+        [
+            '<tool>{"name":"make_plan","args":{"goal":"add logging"}}</tool>',
+            plan_payload,
+            "<final>Planned.</final>",
+        ],
+    )
+
+    agent.ask("Plan logging work")
+
+    events = _read_ask_timing_logs(tmp_path, agent.session["id"])[0]["events"]
+    llm_events = [event for event in events if event["kind"] == "llm"]
+    tool_events = [event for event in events if event["kind"] == "tool"]
+    assert len(llm_events) == 2
+    assert len(tool_events) == 1
+    assert tool_events[0]["name"] == "make_plan"
+
+
+def test_ask_timing_multiple_asks_append_jsonl(tmp_path):
+    agent = build_agent(
+        tmp_path,
+        [
+            "<final>First.</final>",
+            "<final>Second.</final>",
+        ],
+    )
+
+    agent.ask("First question")
+    agent.ask("Second question")
+
+    logs = _read_ask_timing_logs(tmp_path, agent.session["id"])
+    assert len(logs) == 2
+    assert logs[0]["ask_id"] == 1
+    assert logs[1]["ask_id"] == 2
+    assert logs[0]["user_message"] == "First question"
+    assert logs[1]["user_message"] == "Second question"
+
+
+def test_ask_timing_write_fail_open(tmp_path, monkeypatch):
+    agent = build_agent(tmp_path, ["<final>OK</final>"])
+
+    def boom(_root, _record):
+        raise OSError("disk full")
+
+    monkeypatch.setattr("mini_coding_agent.hooks.plugins.ask_timing_hook.append_ask_timing_log", boom)
+
+    answer = agent.ask("hello")
+
+    assert answer == "OK"
+    assert _read_ask_timing_logs(tmp_path, agent.session["id"]) == []
+
+
+def test_ask_timing_validation_error_no_tool_event(tmp_path):
+    (tmp_path / "hello.txt").write_text("hi\n", encoding="utf-8")
+    agent = build_agent(
+        tmp_path,
+        [
+            '<tool>{"name":"read_file","args":{}}</tool>',
+            '<tool>{"name":"read_file","args":{"path":"hello.txt","start":1,"end":1}}</tool>',
+            "<final>Recovered.</final>",
+        ],
+    )
+
+    agent.ask("Read file")
+
+    events = _read_ask_timing_logs(tmp_path, agent.session["id"])[0]["events"]
+    assert events[0]["kind"] == "llm" and events[0]["outcome"] == "tool"
+    assert events[1]["kind"] == "llm" and events[1]["outcome"] == "tool"
+    assert events[2]["kind"] == "tool"
+    assert events[3]["kind"] == "llm" and events[3]["outcome"] == "final"
+
+
+def test_ask_timing_stop_outcome_on_step_limit(tmp_path):
+    agent = build_agent(
+        tmp_path,
+        [
+            '<tool>{"name":"list_files","args":{}}</tool>',
+            '<tool>{"name":"list_files","args":{}}</tool>',
+        ],
+        max_steps=2,
+    )
+
+    answer = agent.ask("Keep listing")
+
+    assert "已停止" in answer
+    llm_events = [event for event in _read_ask_timing_logs(tmp_path, agent.session["id"])[0]["events"] if event["kind"] == "llm"]
+    assert llm_events[-1]["outcome"] == "stop"
+
+
+def test_hook_registry_rejects_unknown_event():
+    registry = HookRegistry()
+    with pytest.raises(ValueError, match="未知的 hook 事件"):
+        registry.register("pre_flight", lambda _ctx: None)
+
+
+def test_register_post_llm_hook_observes_outcome(tmp_path):
+    agent = build_agent(tmp_path, ["<final>Hi.</final>"], enable_trace_hook=False)
+    seen = []
+
+    def observe(ctx):
+        seen.append((ctx.attempt, ctx.outcome, ctx.duration_ms))
+
+    agent.register_hook("post_llm", observe)
+    agent.ask("hello")
+
+    assert len(seen) == 1
+    assert seen[0][0] == 1
+    assert seen[0][1] == "final"
+    assert seen[0][2] >= 0
+
+
+def test_ask_timing_disabled_via_hook_config(tmp_path):
+    config = HookConfig(ask_timing=False)
+    agent = build_agent(tmp_path, ["<final>OK</final>"], hook_config=config)
+
+    agent.ask("hello")
+
+    assert _read_ask_timing_logs(tmp_path, agent.session["id"]) == []
 

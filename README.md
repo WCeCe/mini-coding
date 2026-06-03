@@ -271,10 +271,12 @@ MiniAgent(..., enable_trace_hook=False)
 |------|------|
 | `mini_coding_agent.py` | Thin CLI launcher (`python mini_coding_agent.py`) |
 | `mini_coding_agent/agent.py` | Main agent loop, tools, change governance |
-| `mini_coding_agent/hooks/registry.py` | Hook registry and context (`pre_tool` / `post_tool`) |
-| `mini_coding_agent/hooks/trace_hook.py` | Session trace + risky tool audit |
-| `mini_coding_agent/hooks/trace_display_hook.py` | Terminal one-line trace (stderr) |
-| `mini_coding_agent/hooks/shell_audit_hook.py` | `run_shell` pattern warnings + `shell_audit` |
+| `mini_coding_agent/hooks/registry.py` | Hook registry and context (ask / llm / tool events) |
+| `mini_coding_agent/hooks/plugins/` | **Hook implementations** — add new hooks here |
+| `mini_coding_agent/hooks/plugins/trace_hook.py` | Session trace + risky tool audit |
+| `mini_coding_agent/hooks/plugins/trace_display_hook.py` | Terminal one-line trace (stderr) |
+| `mini_coding_agent/hooks/plugins/shell_audit_hook.py` | `run_shell` pattern warnings + `shell_audit` |
+| `mini_coding_agent/hooks/plugins/ask_timing_hook.py` | Per-ask LLM/tool timing jsonl |
 | `mini_coding_agent/hooks/builtin.py` | Register built-in hooks from YAML config |
 
 Import from the package as before: `from mini_coding_agent import MiniAgent`.
@@ -332,7 +334,7 @@ Default path (under your workspace root):
 .mini-coding-agent/hooks.yaml
 ```
 
-Copy the repo template [`hooks.yaml.example`](mini_coding_agent/hooks/hooks.yaml.example) into that path and edit as needed.
+Copy the repo template [`hooks.yaml.example`](.mini-coding-agent/hooks.yaml.example) into that path and edit as needed.
 
 Example:
 
@@ -369,7 +371,7 @@ uv run mini-coding-agent --no-trace-display
 
 #### Project layout (Phase 2 / 2.1 — hooks package)
 
-All hook implementations live under `mini_coding_agent/hooks/`. Add new hooks in that directory and register them from `builtin.py` or via `register_hook`.
+All hook implementations live under `mini_coding_agent/hooks/plugins/`. Add new hooks in that directory and register them from `builtin.py` or via `register_hook`.
 
 | Path | Role |
 |------|------|
@@ -377,9 +379,11 @@ All hook implementations live under `mini_coding_agent/hooks/`. Add new hooks in
 | `mini_coding_agent/hooks/hooks.yaml.example` | Template; copy to `<workspace>/.mini-coding-agent/hooks.yaml` |
 | `mini_coding_agent/hooks/registry.py` | Hook registry and context |
 | `mini_coding_agent/hooks/builtin.py` | Register built-in hooks from config |
-| `mini_coding_agent/hooks/trace_hook.py` | Session trace + risky tool audit |
-| `mini_coding_agent/hooks/trace_display_hook.py` | Terminal one-line trace |
-| `mini_coding_agent/hooks/shell_audit_hook.py` | Shell pattern audit |
+| `mini_coding_agent/hooks/plugins/` | Hook implementations (add new hooks here) |
+| `mini_coding_agent/hooks/plugins/trace_hook.py` | Session trace + risky tool audit |
+| `mini_coding_agent/hooks/plugins/trace_display_hook.py` | Terminal one-line trace |
+| `mini_coding_agent/hooks/plugins/shell_audit_hook.py` | Shell pattern audit |
+| `mini_coding_agent/hooks/plugins/ask_timing_hook.py` | Per-ask timing jsonl |
 
 ### Known limitations (Phase 2.1)
 

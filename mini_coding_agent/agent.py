@@ -5,7 +5,7 @@ from pathlib import Path
 from mini_coding_agent.governance import approve as approve_change
 from mini_coding_agent.governance import restore_checkpoint
 from mini_coding_agent.hooks.hook_config import default_hook_config, emit_config_warnings, load_hook_config
-from mini_coding_agent.hooks import HookRegistry, register_builtin_hooks
+from mini_coding_agent.hooks import AskHookContext, HookRegistry, LlmHookContext, register_builtin_hooks
 from mini_coding_agent.protocol import parse
 from mini_coding_agent.prompt import build_prefix as build_agent_prefix
 from mini_coding_agent.prompt import build_prompt, history_text as format_history_text
@@ -78,6 +78,7 @@ class MiniAgent:
             self.hook_config.session_trace = False
             self.hook_config.trace_display = False
             self.hook_config.shell_audit = False
+            self.hook_config.ask_timing = False
         self.checkpoint_store = CheckpointStore(self.root / ".mini-coding-agent" / "checkpoints")
         #是「上一次文件写操作」的治理附加信息（diff 摘要、checkpoint id、是否回滚）
         self._last_tool_meta = {}
@@ -187,71 +188,88 @@ class MiniAgent:
             memory["task"] = clip(user_message.strip(), 300)
         self.record({"role": "user", "content": user_message, "created_at": now()})
 
+        ask_count = self.session.get("ask_count", 0) + 1
+        self.session["ask_count"] = ask_count
+        ask_ctx = AskHookContext(agent=self, ask_id=ask_count, user_message=user_message)
+        self.hook_registry.emit_pre_ask(ask_ctx)
+
         #工具步数
         tool_steps = 0
         #尝试次数
         attempts = 0
         #最大尝试次数
         max_attempts = max(self.max_steps * 3, self.max_steps + 4)
-        #如果工具步数小于最大步数且尝试次数小于最大尝试次数，则继续循环
-        while tool_steps < self.max_steps and attempts < max_attempts:
-            attempts += 1
-            #调用模型客户端，生成响应
-            raw = complete_with_wait_display(
-                self.model_client,
-                self.prompt(user_message),
-                self.max_new_tokens,
-                message=MESSAGE_MODEL,
-            )
-            #解析响应，分为标签和具体内容
-            kind, payload = parse(raw)
-            #如果kind为tool，则执行工具
-            if kind == "tool":
-                tool_steps += 1
-                name = payload.get("name", "")
-                args = payload.get("args", {})
-                #得到工具调用后的结果
-                result = self.run_tool(name, args)
-                #先用一个变量记录基本的信息
-                tool_record = {
-                        "role": "tool",
-                        #工具名字write_file等
-                        "name": name,
-                        "args": args,
-                        "content": result,
-                        "created_at": now(),
-                    }
-                #如果self._last_tool_meta不为空，则更新tool_record
-                if self._last_tool_meta:
-                    #将self._last_tool_meta的变更治理的附加信息更新到tool_record里面
-                    tool_record.update(self._last_tool_meta)
-                    #清空self._last_tool_meta，因为已经记录到tool_record里面了
-                    self._last_tool_meta = {}
-                #记录到历史中
-                self.record(tool_record)
-                #记录到memory中
-                self.note_tool(name, args, result)
-                continue
+        try:
+            #如果工具步数小于最大步数且尝试次数小于最大尝试次数，则继续循环
+            while tool_steps < self.max_steps and attempts < max_attempts:
+                attempts += 1
+                llm_ctx = LlmHookContext(agent=self, ask_ctx=ask_ctx, attempt=attempts)
+                self.hook_registry.emit_pre_llm(llm_ctx)
+                #调用模型客户端，生成响应
+                raw = complete_with_wait_display(
+                    self.model_client,
+                    self.prompt(user_message),
+                    self.max_new_tokens,
+                    message=MESSAGE_MODEL,
+                )
+                #解析响应，分为标签和具体内容
+                kind, payload = parse(raw)
+                #如果kind为tool，则执行工具
+                if kind == "tool":
+                    llm_ctx.outcome = "tool"
+                    self.hook_registry.emit_post_llm(llm_ctx)
+                    tool_steps += 1
+                    name = payload.get("name", "")
+                    args = payload.get("args", {})
+                    #得到工具调用后的结果
+                    result = self.run_tool(name, args)
+                    #先用一个变量记录基本的信息
+                    tool_record = {
+                            "role": "tool",
+                            #工具名字write_file等
+                            "name": name,
+                            "args": args,
+                            "content": result,
+                            "created_at": now(),
+                        }
+                    #如果self._last_tool_meta不为空，则更新tool_record
+                    if self._last_tool_meta:
+                        #将self._last_tool_meta的变更治理的附加信息更新到tool_record里面
+                        tool_record.update(self._last_tool_meta)
+                        #清空self._last_tool_meta，因为已经记录到tool_record里面了
+                        self._last_tool_meta = {}
+                    #记录到历史中
+                    self.record(tool_record)
+                    #记录到memory中
+                    self.note_tool(name, args, result)
+                    continue
 
-            if kind == "retry":
+                if kind == "retry":
+                    llm_ctx.outcome = "retry"
+                    self.hook_registry.emit_post_llm(llm_ctx)
+                    #记录响应
+                    self.record({"role": "assistant", "content": payload, "created_at": now()})
+                    continue
+
+                llm_ctx.outcome = "final"
+                self.hook_registry.emit_post_llm(llm_ctx)
+                final = (payload or raw).strip()
                 #记录响应
-                self.record({"role": "assistant", "content": payload, "created_at": now()})
-                continue
+                self.record({"role": "assistant", "content": final, "created_at": now()})
+                #记录到notes中
+                self.remember(memory["notes"], clip(final, 220), 5)
+                #返回最终答案
+                return final
 
-            final = (payload or raw).strip()
-            #记录响应
+            ask_ctx.stop_last_llm = True
+            if attempts >= max_attempts and tool_steps < self.max_steps:
+                final = "已停止：模型多次返回无效 tool 或 final，未得到有效结果。"
+            else:
+                final = "已停止：达到步数上限仍未得到 final 回答。"
             self.record({"role": "assistant", "content": final, "created_at": now()})
-            #记录到notes中
-            self.remember(memory["notes"], clip(final, 220), 5)
-            #返回最终答案
             return final
-
-        if attempts >= max_attempts and tool_steps < self.max_steps:
-            final = "已停止：模型多次返回无效 tool 或 final，未得到有效结果。"
-        else:
-            final = "已停止：达到步数上限仍未得到 final 回答。"
-        self.record({"role": "assistant", "content": final, "created_at": now()})
-        return final
+        finally:
+            self.hook_registry.emit_post_ask(ask_ctx)
 
     #############################################################
     #### 3) Structured Tools, Validation, And Permissions #######

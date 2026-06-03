@@ -79,6 +79,8 @@ struct 见 [`phase4.md`](../struct/phase4.md)。
 | TASK_ID | 说明 | 状态 |
 |---------|------|------|
 | [OPT-WAIT-DISPLAY](./OPT-WAIT-DISPLAY.md) | 模型 `complete()` 阻塞期间 stderr 单行 spinner | ✅ 2026-06-03 |
+| [OPT-ASK-TIMING](./OPT-ASK-TIMING.md) | 每次 ask 结束 append LLM/tool 耗时 JSONL | ✅ → 由 HOOK-ASK-EVENTS 归位 |
+| [HOOK-ASK-EVENTS](./HOOK-ASK-EVENTS.md) | 扩展 ask/llm Hook 触发点 + AskTiming 迁入 hooks/ | ✅ 2026-06-03 |
 
 ---
 

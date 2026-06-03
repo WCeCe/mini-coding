@@ -20,7 +20,15 @@ mini-coding-agent-main/
 │   │   └── implementations.py    # list/read/search/shell/delegate/make_plan/load_skill
 │   ├── planning.py               # Phase 3 make_plan
 │   ├── skills.py                 # Phase 4 SkillCatalog
-│   ├── hooks/                    # Phase 2 HookRegistry、内置 Hook
+│   ├── hooks/                    # HookRegistry、配置、builtin 装配
+│   │   ├── registry.py           # 事件 + Context + emit
+│   │   ├── hook_config.py        # HookConfig + hooks.yaml
+│   │   ├── builtin.py            # register_builtin_hooks
+│   │   └── plugins/              # Hook 实现（新增 Hook 放此目录）
+│   │       ├── trace_hook.py
+│   │       ├── trace_display_hook.py
+│   │       ├── shell_audit_hook.py
+│   │       └── ask_timing_hook.py
 │   ├── workspace.py              # WorkspaceContext
 │   ├── session.py                # SessionStore、CheckpointStore
 │   ├── util.py                   # clip、diff、atomic_write、hash
@@ -170,13 +178,26 @@ load_skill / CLI --skills → memory.loaded_skills → prompt.memory_text()
 
 ---
 
-## 10. Phase 2 Hook
+## 10. Phase 2 Hook（含 ask/llm 扩展 · HOOK-ASK-EVENTS）
 
-- 注册：`agent.hook_registry` · `register_hook` / YAML `hooks.yaml`
-- 触发点：`tools/runtime.invoke_tool_with_hooks`（校验通过之后）
-- 内置：`hooks/`（trace、shell_audit、trace_display 等）
+- **注册**：`agent.hook_registry` · `register_hook` / `hooks/builtin.py` · YAML `hooks.yaml`
+- **事件**：
+  - `pre_tool` / `post_tool` — `tools/runtime.invoke_tool_with_hooks`（校验通过之后）
+  - `pre_ask` / `post_ask` — `agent.ask()` 入口 / `finally`
+  - `pre_llm` / `post_llm` — 主循环每轮 prompt → complete → parse
+- **Context**：`ToolHookContext` · `AskHookContext` · `LlmHookContext`（`hooks/registry.py`）
+- **内置**（各可 YAML/CLI 独立启停）：
 
-详见 [`phase2.md`](./phase2.md) · [`07-phase2-reliability-contract.md`](./07-phase2-reliability-contract.md)
+| Hook | 文件 | 配置键 |
+|------|------|--------|
+| session trace | `plugins/trace_hook.py` | `session_trace` |
+| 终端 trace | `plugins/trace_display_hook.py` | `trace_display` |
+| shell 审计 | `plugins/shell_audit_hook.py` | `shell_audit` |
+| ask 耗时 jsonl | `plugins/ask_timing_hook.py` | `ask_timing` |
+
+- **ask timing 落盘**：`<repo>/.mini-coding-agent/logs/<session_id>.jsonl`（每 ask 一行；llm/tool 交替，方案 A）
+
+详见 [`phase2.md`](./phase2.md)
 
 ---
 

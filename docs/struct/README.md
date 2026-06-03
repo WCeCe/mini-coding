@@ -39,6 +39,6 @@
 | Phase 2（含 Hook 用户价值） | ✅ |
 | Phase 3 | ✅ 已结项（make_plan + docs） |
 | Phase 4（Skills + 文档 + REVIEW） | ✅ P4-REVIEW 2026-06-02 |
-| 测试 | 71 passed, 1 skipped |
+| 测试 | 82 passed, 1 skipped |
 | benchmark | 暂缓（设计稳后再量化） |
 | Agent 重构（R1–R4 + REVIEW） | ✅ 2026-06-02 |
