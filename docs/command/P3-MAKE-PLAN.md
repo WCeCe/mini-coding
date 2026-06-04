@@ -29,7 +29,7 @@
 - **`--plan-first`** — CLI 旗标传入 Agent；该次 `ask` 在首次 **risky** tool（`write_file` / `patch_file` / `run_shell`）前须已成功 `make_plan`；enforcement 方式自定，须在 feedback 说明
 - **不自动编排** — 不实现按 plan 逐步 auto-dispatch、不写默认 plan 文件
 - **Phase 1/2 契约不变** — 治理、Hook observe-only、fail-open
-- **保留用户注释** + **新增代码带注释**（铁律 §5–§6）
+- **保留用户注释** + **新增代码带注释**（铁律 §7）
 
 ---
 

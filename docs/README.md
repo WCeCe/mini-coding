@@ -40,8 +40,9 @@
 ## 子 Agent 窗口快速入口
 
 1. 读 [`struct/README.md`](./struct/README.md) 了解项目背景
-2. 读被指派的 [`command/<TASK_ID>.md`](./command/)
-3. 自行设计并实现；按 [`feedback/TEMPLATE.md`](./feedback/TEMPLATE.md) 写入 `feedback/<TASK_ID>.md`（含方案摘要与验收自证）
+2. **当前主线**：读 [`struct/phase5-graph.md`](./struct/phase5-graph.md) + [`command/GOLDEN-LOOP-OVERVIEW.md`](./command/GOLDEN-LOOP-OVERVIEW.md)
+3. 读被指派的 [`command/<TASK_ID>.md`](./command/)
+4. 自行设计并实现；按 [`feedback/TEMPLATE.md`](./feedback/TEMPLATE.md) 写入 `feedback/<TASK_ID>.md`（含方案摘要与验收自证）
 
 ---
 
@@ -52,6 +53,7 @@
 - **阶段记录**（大阶段各一份）：[`phase1`](./struct/phase1.md) · [`phase2`](./struct/phase2.md) · [`phase3`](./struct/phase3.md) · [`phase4`](./struct/phase4.md)
 - **Phase 3**：✅ 已结项 · 用户说明见根目录 [`README.md`](../README.md) § Task Planning
 - **Phase 4**：✅ 已结项 · struct [`phase4`](./struct/phase4.md)
+- **Phase 5**：✅ **结项** · struct [`phase5-graph`](./struct/phase5-graph.md)（含 DAG MVP + eval 黄金闭环 · live 2/5）· 用户说明见根目录 [`README.md`](../README.md) § Graph Harness (Phase 5)
 
 ---
 
@@ -63,4 +65,4 @@
 
 ---
 
-*文档体系 v4 · 大阶段：phase1 / phase2 / phase3 / phase4*
+*文档体系 v5 · Phase 5 Graph ✅ 结项（P5 + GL · live 2/5）*

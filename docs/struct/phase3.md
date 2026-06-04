@@ -33,7 +33,7 @@
 | 测试 | 53 passed, 1 skipped |
 | 验收 | [`feedback/P3-REVIEW.md`](../feedback/P3-REVIEW.md) |
 
-**文案规范**：全包用户可见字符串已按 [`04-user-facing-locale.md`](./04-user-facing-locale.md)（铁律 §7）中文化；规划成功前缀 `规划成功`；JSON **字段名英文、值建议中文**。行为与 P3-REVIEW 一致。
+**文案规范**：全包用户可见字符串已按 [`04-user-facing-locale.md`](./04-user-facing-locale.md)（铁律 §8）中文化；规划成功前缀 `规划成功`；JSON **字段名英文、值建议中文**。行为与 P3-REVIEW 一致。
 
 ---
 

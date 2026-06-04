@@ -8,43 +8,41 @@
 mini-coding-agent-main/
 ├── mini_coding_agent.py          # CLI 薄入口 → mini_coding_agent.cli.main
 ├── mini_coding_agent/
-│   ├── agent.py                  # 编排：ask、初始化、Hook 接线、Skills session（~337 行）
-│   ├── protocol.py               # parse / XML tool / retry（R1）
-│   ├── governance.py             # diff、checkpoint、approve、回滚（R2）
-│   ├── prompt.py                 # build_prefix、memory_text、history_text、build_prompt（R3）
-│   ├── tools/                    # 注册表、校验、沙箱、run 管道、tool_* 实现（R4）
-│   │   ├── registry.py           # build_tools
-│   │   ├── validators.py         # validate_tool、tool_example、repeated_tool_call
-│   │   ├── sandbox.py            # resolve_path、path_is_within_root
-│   │   ├── runtime.py            # run_tool、Hook 包裹、plan-first / 治理分支
-│   │   └── implementations.py    # list/read/search/shell/delegate/make_plan/load_skill
-│   ├── planning.py               # Phase 3 make_plan
-│   ├── skills.py                 # Phase 4 SkillCatalog
-│   ├── hooks/                    # HookRegistry、配置、builtin 装配
-│   │   ├── registry.py           # 事件 + Context + emit
-│   │   ├── hook_config.py        # HookConfig + hooks.yaml
-│   │   ├── builtin.py            # register_builtin_hooks
-│   │   └── plugins/              # Hook 实现（新增 Hook 放此目录）
-│   │       ├── trace_hook.py
-│   │       ├── trace_display_hook.py
-│   │       ├── shell_audit_hook.py
-│   │       └── ask_timing_hook.py
-│   ├── workspace.py              # WorkspaceContext
-│   ├── session.py                # SessionStore、CheckpointStore
-│   ├── util.py                   # clip、diff、atomic_write、hash
-│   ├── models.py                 # FakeModelClient、OllamaModelClient
-│   ├── constants.py
-│   └── cli.py
+│   ├── cli.py                    # REPL、--harness、rig build
+│   ├── platform/                 # 共用底座（两种 mode 共享）
+│   │   ├── tools/                # 注册表、校验、沙箱、run 管道、tool_* 实现
+│   │   ├── hooks/                # HookRegistry、YAML、builtin / plugins
+│   │   ├── governance.py         # diff、checkpoint、approve、回滚
+│   │   ├── protocol.py           # parse / XML tool / retry
+│   │   ├── prompt 相关见 modes/open/prompt.py
+│   │   ├── planning.py           # make_plan
+│   │   ├── skills.py             # SkillCatalog
+│   │   ├── session.py            # SessionStore、CheckpointStore
+│   │   ├── workspace.py          # WorkspaceContext
+│   │   ├── models.py             # FakeModelClient、OllamaModelClient
+│   │   ├── util.py · constants.py · wait_display.py
+│   ├── modes/
+│   │   ├── open/                 # Open Loop：自由工具循环
+│   │   │   ├── agent.py          # MiniAgent · ask()
+│   │   │   └── prompt.py         # build_prefix、build_prompt、history
+│   │   └── graph/                # Graph 编排：Gate + DAG（原 harness/）
+│   │       ├── runner.py · gate.py · planner.py · executor.py · pipeline.py
+│   │       ├── nodes/            # locate / generate / verify / …
+│   │       └── templates/        # 五类意图 JSON
+│   └── index/                    # 离线索引（原 rig/）：build · query · store
+├── eval/                         # 黄金闭环 eval（tasks.json + run_eval.py）
 ├── pyproject.toml
-├── tests/test_mini_coding_agent.py
+├── tests/
 ├── docs/
 └── .github/workflows/ci.yml
 ```
 
+**分层语义**：整包 = coding harness；`platform/` = 共用运行时；`modes/open` vs `modes/graph` = 两种编排路径；`index/` = 离线代码图谱。
+
 运行时 session：`<repo_root>/.mini-coding-agent/sessions/<id>.json`  
 检查点：`<repo_root>/.mini-coding-agent/checkpoints/<session>/<cp-id>.json`
 
-**用户可见文案**：中文为主；工具名/参数/JSON 字段/`<tool>` 协议保持英文。见 [`04-user-facing-locale.md`](./04-user-facing-locale.md)（铁律 §7）。
+**用户可见文案**：中文为主；工具名/参数/JSON 字段/`<tool>` 协议保持英文。见 [`04-user-facing-locale.md`](./04-user-facing-locale.md)（铁律 §8）。
 
 ---
 
@@ -52,16 +50,18 @@ mini-coding-agent-main/
 
 | # | 组件 | 关键符号 / 模块 | 职责 |
 |---|------|-----------------|------|
-| 1 | Live Repo Context | `workspace.py` · `WorkspaceContext` | git 状态、文档片段 |
-| 2 | Prompt Shape | `prompt.py` · `build_prefix`、`memory_text`、`history_text`、`build_prompt` | 稳定前缀 + 可变 transcript |
-| 3 | Structured Tools | `tools/*` · `registry.build_tools`、`runtime.run_tool`、`validators.validate_tool`；`protocol.parse`；`governance.approve` | 工具注册、校验、执行管道、解析、审批 |
-| 4 | Context Reduction | `prompt.history_text` · `util.clip` | 截断、去重、压缩 |
-| 5 | Transcripts & Memory | `agent.py` · `SessionStore`、`record`、`note_tool`、`ask`、`reset` | 持久化、主循环 |
-| 6 | Delegation | `tools/implementations.tool_delegate` | 只读子 Agent |
+| 1 | Live Repo Context | `platform/workspace.py` · `WorkspaceContext` | git 状态、文档片段 |
+| 2 | Prompt Shape | `modes/open/prompt.py` · `build_prefix`、`build_prompt` | 稳定前缀 + 可变 transcript |
+| 3 | Structured Tools | `platform/tools/*` · `protocol.parse` · `governance.approve` | 工具注册、校验、执行管道 |
+| 4 | Context Reduction | `modes/open/prompt.history_text` · `platform/util.clip` | 截断、去重、压缩 |
+| 5 | Transcripts & Memory | `modes/open/agent.py` · `SessionStore`、`ask` | 持久化、Open Loop 主循环 |
+| 6 | Delegation | `platform/tools/implementations.tool_delegate` | 只读子 Agent |
+| 7 | Graph 编排 | `modes/graph/*` · `handle_ask` · Gate + DAG | 确定性流水线（Phase 5） |
+| 8 | 离线索引 | `index/*` · `build_rig` · `RigQuery` | Locate 用代码图谱 |
 
 ---
 
-## 3. 主循环 `ask()`（`agent.py`）
+## 3. 主循环 `ask()`（`modes/open/agent.py`）
 
 ```
 用户消息 → record(user)

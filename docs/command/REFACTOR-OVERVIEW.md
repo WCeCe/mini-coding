@@ -38,7 +38,7 @@
 | 验证 | `python -m ruff check .` |
 | 改动 | 一步一 TASK；不顺手改无关模块 |
 | Git | 不 commit/push（除非用户要求） |
-| 铁律 | [`01-vision-and-roadmap.md`](../struct/01-vision-and-roadmap.md) §5–§7 |
+| 铁律 | [`01-vision-and-roadmap.md`](../struct/01-vision-and-roadmap.md) §6–§8 |
 
 ---
 

@@ -1,0 +1,13 @@
+{
+  "intent_id": "refactor",
+  "nodes": [
+    {"id": "locate", "type": "locate", "deps": []},
+    {"id": "plan", "type": "plan", "deps": ["locate"]},
+    {"id": "generate", "type": "generate", "deps": ["plan"]},
+    {"id": "verify", "type": "verify", "deps": ["generate"]},
+    {"id": "review", "type": "review", "deps": ["verify"]}
+  ],
+  "retry": {
+    "verify": {"on_fail": "generate", "max": 2}
+  }
+}

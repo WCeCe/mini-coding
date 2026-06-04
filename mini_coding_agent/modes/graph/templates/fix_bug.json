@@ -1,0 +1,11 @@
+{
+  "intent_id": "fix_bug",
+  "nodes": [
+    {"id": "locate", "type": "locate", "deps": []},
+    {"id": "generate", "type": "generate", "deps": ["locate"]},
+    {"id": "verify", "type": "verify", "deps": ["generate"]}
+  ],
+  "retry": {
+    "verify": {"on_fail": "generate", "max": 2}
+  }
+}

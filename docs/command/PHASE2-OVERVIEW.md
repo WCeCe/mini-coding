@@ -50,7 +50,7 @@
 | 结构 | 允许多模块；须在 `feedback` 说明模块 map 与入口 |
 | 改动 | 重构 + Hook 最小必要 diff；不顺手改无关逻辑 |
 | 注释 | **保留**：除非逻辑完全删除，否则保留既有注释。**新增**：生成/改动的代码须带适量注释（模块职责、非显而易见分支、可靠性契约），保证可读性 |
-| 用户可见文案 | 中文；协议标识英文（铁律 §7 · [`struct/04-user-facing-locale.md`](../struct/04-user-facing-locale.md)） |
+| 用户可见文案 | 中文；协议标识英文（铁律 §8 · [`struct/04-user-facing-locale.md`](../struct/04-user-facing-locale.md)） |
 | 测试 | Phase 1 测试全绿；Hook 新行为有 pytest；`FakeModelClient`，不依赖 Ollama |
 | 验证 | `python -m pytest -q`、`python -m ruff check .` |
 | Git | 不 `commit` / `push`（除非用户明确要求） |

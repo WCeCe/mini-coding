@@ -1,0 +1,8 @@
+{
+  "intent_id": "project_ops",
+  "nodes": [
+    {"id": "locate", "type": "locate", "deps": []},
+    {"id": "ops", "type": "ops", "deps": ["locate"]},
+    {"id": "review", "type": "review", "deps": ["ops"]}
+  ]
+}

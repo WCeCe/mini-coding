@@ -3,13 +3,15 @@ import shutil
 import sys
 from pathlib import Path
 
-from mini_coding_agent.agent import MiniAgent
-from mini_coding_agent.constants import HELP_DETAILS, WELCOME_ART
-from mini_coding_agent.hooks.hook_config import apply_cli_overrides, emit_config_warnings, load_hook_config
-from mini_coding_agent.models import OllamaModelClient
-from mini_coding_agent.session import SessionStore
-from mini_coding_agent.util import middle
-from mini_coding_agent.workspace import WorkspaceContext
+from mini_coding_agent.modes.open.agent import MiniAgent
+from mini_coding_agent.platform.constants import HELP_DETAILS, WELCOME_ART
+from mini_coding_agent.modes.graph.runner import handle_ask
+from mini_coding_agent.platform.hooks.hook_config import apply_cli_overrides, emit_config_warnings, load_hook_config
+from mini_coding_agent.platform.models import OllamaModelClient
+from mini_coding_agent.index.build import build_rig
+from mini_coding_agent.platform.session import SessionStore
+from mini_coding_agent.platform.util import middle
+from mini_coding_agent.platform.workspace import WorkspaceContext
 
 
 def _parse_skills_arg(raw):
@@ -180,10 +182,49 @@ def build_arg_parser():
         default=None,
         help="逗号分隔的 skill 名；Agent 构建时预加载对应 SKILL.md 正文。",
     )
+    # Phase 5.1: Graph Harness Gate；默认 off，流水线未就绪时安全降级 open
+    parser.add_argument(
+        "--harness",
+        choices=("off", "on"),
+        default="off",
+        help="Graph Harness：on 时先 Gate 分类（5.1 流水线未就绪时仍降级 open）。",
+    )
+    parser.add_argument(
+        "--gate-log",
+        action="store_true",
+        help="将 Gate 意图分类结果打印到 stderr（可与 --harness off 联用仅观测）。",
+    )
     return parser
 
 
+def rig_main(argv):
+    """Phase 5.4：RIG 子命令（rig build）。"""
+    parser = argparse.ArgumentParser(
+        prog="mini-coding-agent rig",
+        description="离线代码知识图谱（RIG）工具。",
+    )
+    sub = parser.add_subparsers(dest="command", required=True)
+    build_parser = sub.add_parser("build", help="全量扫描仓库 Python 并写入 rig.db。")
+    build_parser.add_argument("--cwd", default=".", help="工作区/仓库根目录。")
+    args = parser.parse_args(argv)
+
+    if args.command == "build":
+        workspace = WorkspaceContext.build(args.cwd)
+        stats = build_rig(workspace.repo_root)
+        print(
+            f"RIG 构建完成：{stats['files']} 个文件，"
+            f"{stats['symbols']} 个符号，{stats['imports']} 条 import。",
+            file=sys.stderr,
+        )
+        print(f"数据库路径：{stats['db_path']}", file=sys.stderr)
+        return 0
+    return 1
+
+
 def main(argv=None):
+    argv = list(argv) if argv is not None else sys.argv[1:]
+    if argv and argv[0] == "rig":
+        return rig_main(argv[1:])
     args = build_arg_parser().parse_args(argv)
     # 初始化Agent
     agent = build_agent(args)
@@ -197,7 +238,14 @@ def main(argv=None):
         if prompt:
             print()
             try:
-                print(agent.ask(prompt))
+                print(
+                    handle_ask(
+                        agent,
+                        prompt,
+                        harness_enabled=(args.harness == "on"),
+                        gate_log=args.gate_log,
+                    )
+                )
             except RuntimeError as exc:
                 print(str(exc), file=sys.stderr)
                 return 1
@@ -231,6 +279,13 @@ def main(argv=None):
 
         print()
         try:
-            print(agent.ask(user_input))
+            print(
+                handle_ask(
+                    agent,
+                    user_input,
+                    harness_enabled=(args.harness == "on"),
+                    gate_log=args.gate_log,
+                )
+            )
         except RuntimeError as exc:
             print(str(exc), file=sys.stderr)

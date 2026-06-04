@@ -11,10 +11,10 @@ from mini_coding_agent import (
     WorkspaceContext,
     build_welcome,
 )
-from mini_coding_agent.hooks.hook_config import HookConfig, load_hook_config
-from mini_coding_agent.hooks import HookRegistry
-from mini_coding_agent.planning import PLAN_MAX_STEPS, parse_plan_response, validate_plan
-from mini_coding_agent.skills import SkillCatalog
+from mini_coding_agent.platform.hooks.hook_config import HookConfig, load_hook_config
+from mini_coding_agent.platform.hooks import HookRegistry
+from mini_coding_agent.platform.planning import PLAN_MAX_STEPS, parse_plan_response, validate_plan
+from mini_coding_agent.platform.skills import SkillCatalog
 
 
 def build_workspace(tmp_path):
@@ -451,7 +451,7 @@ def test_write_failure_rolls_back_new_file(tmp_path):
     agent = build_agent(tmp_path, [], approval_policy="auto")
     target = tmp_path / "fail.py"
 
-    with patch("mini_coding_agent.governance.atomic_write_text", side_effect=OSError("disk full")):
+    with patch("mini_coding_agent.platform.governance.atomic_write_text", side_effect=OSError("disk full")):
         result = agent.run_tool("write_file", {"path": "fail.py", "content": "boom\n"})
 
     assert "错误：工具 write_file 执行失败" in result
@@ -466,7 +466,7 @@ def test_patch_failure_restores_original_content(tmp_path):
     agent = build_agent(tmp_path, [], approval_policy="auto")
 
     with patch(
-        "mini_coding_agent.governance.atomic_write_text",
+        "mini_coding_agent.platform.governance.atomic_write_text",
         side_effect=[OSError("disk full"), None],
     ):
         result = agent.run_tool(
@@ -696,7 +696,7 @@ def test_shell_audit_warns_and_records_without_blocking(tmp_path, capsys):
     agent = build_agent(tmp_path, [], approval_policy="auto")
     completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="ok", stderr="")
 
-    with patch("mini_coding_agent.tools.implementations.subprocess.run", return_value=completed):
+    with patch("mini_coding_agent.platform.tools.implementations.subprocess.run", return_value=completed):
         result = agent.run_tool("run_shell", {"command": "rm -rf /tmp/demo", "timeout": 5})
 
     assert "exit_code: 0" in result
@@ -711,7 +711,7 @@ def test_shell_audit_no_alert_for_safe_command(tmp_path, capsys):
     agent = build_agent(tmp_path, [], approval_policy="auto")
     completed = subprocess.CompletedProcess(args=[], returncode=0, stdout="hi", stderr="")
 
-    with patch("mini_coding_agent.tools.implementations.subprocess.run", return_value=completed):
+    with patch("mini_coding_agent.platform.tools.implementations.subprocess.run", return_value=completed):
         agent.run_tool("run_shell", {"command": "echo hi", "timeout": 5})
 
     captured = capsys.readouterr()
@@ -1078,7 +1078,7 @@ def test_child_agent_has_load_skill(tmp_path):
 
 @pytest.fixture
 def restore_wait_display():
-    from mini_coding_agent.wait_display import set_wait_display_enabled
+    from mini_coding_agent.platform.wait_display import set_wait_display_enabled
 
     set_wait_display_enabled(True)
     yield
@@ -1086,7 +1086,7 @@ def restore_wait_display():
 
 
 def test_wait_display_non_tty_prints_static_message(tmp_path, capsys, restore_wait_display, monkeypatch):
-    monkeypatch.setattr("mini_coding_agent.wait_display._stderr_is_tty", lambda: False)
+    monkeypatch.setattr("mini_coding_agent.platform.wait_display._stderr_is_tty", lambda: False)
     agent = build_agent(tmp_path, ["<final>你好。</final>"])
 
     answer = agent.ask("你好")
@@ -1105,7 +1105,7 @@ def test_wait_display_tty_clears_spinner_line(tmp_path, capsys, restore_wait_dis
             time.sleep(0.25)
             return super().complete(prompt, max_new_tokens)
 
-    monkeypatch.setattr("mini_coding_agent.wait_display._stderr_is_tty", lambda: True)
+    monkeypatch.setattr("mini_coding_agent.platform.wait_display._stderr_is_tty", lambda: True)
     agent = MiniAgent(
         model_client=SlowFakeModelClient(["<final>完成。</final>"]),
         workspace=build_workspace(tmp_path),
@@ -1123,7 +1123,7 @@ def test_wait_display_tty_clears_spinner_line(tmp_path, capsys, restore_wait_dis
 
 
 def test_wait_display_during_make_plan(tmp_path, capsys, restore_wait_display, monkeypatch):
-    monkeypatch.setattr("mini_coding_agent.wait_display._stderr_is_tty", lambda: False)
+    monkeypatch.setattr("mini_coding_agent.platform.wait_display._stderr_is_tty", lambda: False)
     plan_payload = json.dumps(_sample_plan("add logging"))
     agent = build_agent(tmp_path, [plan_payload])
 
@@ -1136,9 +1136,9 @@ def test_wait_display_during_make_plan(tmp_path, capsys, restore_wait_display, m
 
 
 def test_wait_display_disabled_no_stderr(tmp_path, capsys, restore_wait_display, monkeypatch):
-    from mini_coding_agent.wait_display import set_wait_display_enabled
+    from mini_coding_agent.platform.wait_display import set_wait_display_enabled
 
-    monkeypatch.setattr("mini_coding_agent.wait_display._stderr_is_tty", lambda: False)
+    monkeypatch.setattr("mini_coding_agent.platform.wait_display._stderr_is_tty", lambda: False)
     set_wait_display_enabled(False)
     agent = build_agent(tmp_path, ["<final>静默。</final>"])
 
@@ -1151,7 +1151,7 @@ def test_wait_display_disabled_no_stderr(tmp_path, capsys, restore_wait_display,
 
 def test_wait_display_before_trace_display_order(tmp_path, capsys, restore_wait_display, monkeypatch):
     """模型返回后 spinner 行已清除，trace 行不被 spinner 残留污染。"""
-    monkeypatch.setattr("mini_coding_agent.wait_display._stderr_is_tty", lambda: False)
+    monkeypatch.setattr("mini_coding_agent.platform.wait_display._stderr_is_tty", lambda: False)
     (tmp_path / "hello.txt").write_text("hi\n", encoding="utf-8")
     agent = build_agent(
         tmp_path,
@@ -1281,7 +1281,7 @@ def test_ask_timing_write_fail_open(tmp_path, monkeypatch):
     def boom(_root, _record):
         raise OSError("disk full")
 
-    monkeypatch.setattr("mini_coding_agent.hooks.plugins.ask_timing_hook.append_ask_timing_log", boom)
+    monkeypatch.setattr("mini_coding_agent.platform.hooks.plugins.ask_timing_hook.append_ask_timing_log", boom)
 
     answer = agent.ask("hello")
 

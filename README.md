@@ -17,6 +17,7 @@ It is a minimal local agent loop with:
 - **terminal tool trace**, shell audit alerts, and **YAML-configured built-in hooks** (Phase 2.1)
 - **task planning** with structured `make_plan` and optional `--plan-first` (Phase 3)
 - **Skills (Phase 4)** — reusable workflow packs from `.mini-coding-agent/skills/` with two-stage loading (`load_skill`, `--skills`)
+- **Graph Harness (Phase 5)** — optional template-driven pipeline: LLM Gate (5 intents), DAG execution, offline RIG, open-loop fallback (`--harness`, `--gate-log`, `rig build`)
 - transcript and memory persistence
 - bounded delegation
 
@@ -591,6 +592,128 @@ Unknown names in `--skills` print a stderr warning; known names are still preloa
 - **Child agents do not inherit** the parent session’s `loaded_skills`; each agent has its own memory.
 
 &nbsp;
+## Graph Harness (Phase 5)
+
+Phase 5 adds an **optional orchestration shell** on top of the existing `ask()` loop. When `--harness off` (default), behavior is unchanged. When `--harness on`, each user message first runs a **Gate** (one short LLM call) to classify intent, then may run a **template DAG pipeline** instead of the free-form tool loop.
+
+Governance (Phase 1), hooks (Phase 2), planning (Phase 3), and Skills (Phase 4) still apply inside pipeline nodes — file writes in the `generate` node go through the same `run_tool` → approval → checkpoint path.
+
+### Five closed intents (Gate)
+
+The Gate may output **only** these `intent_id` values (English ids; user messages may be Chinese or mixed):
+
+| intent_id | Typical user intent | Pipeline (MVP) |
+|-----------|---------------------|----------------|
+| `generate_code` | New files, new features, add tests | locate → generate → verify → review |
+| `fix_bug` | Tracebacks, test failures, wrong behavior | locate → generate → verify → review |
+| `refactor` | Restructure without changing semantics | locate → **plan** → generate → verify → review |
+| `explain` | Understand code only — **no edits** | locate → **explain** |
+| `project_ops` | Run tests, pip, git status — **no source edits** | locate → **ops** → review |
+
+Illegal Gate output or **`confidence=low`** → **open** fallback: the agent uses the normal `ask()` loop (same as `--harness off` for that turn).
+
+Pipeline failure (node error, verify exhausted retries) also **falls back to open** with a short reason on stderr.
+
+### CLI: `--harness` and `--gate-log`
+
+| Flag | Default | Effect |
+|------|---------|--------|
+| `--harness off\|on` | `off` | `off`: every message uses `ask()` only (no Gate). `on`: Gate + pipeline when `confidence=high` and intent is one of the five above. |
+| `--gate-log` | off | Print Gate classification to **stderr** (`[gate] intent_id=… confidence=… route=…`). Can be used with `--harness off` to **observe** Gate only (still runs one Gate LLM call per message). |
+
+Examples:
+
+```bash
+# Normal REPL (unchanged)
+uv run mini-coding-agent
+
+# Observe Gate only; execution still uses ask()
+uv run mini-coding-agent --gate-log "修 calc.py 的 bug"
+
+# Full harness: Gate + template pipeline; low/illegal → ask()
+uv run mini-coding-agent --harness on --approval auto "实现 hello.py"
+```
+
+Progress lines on stderr during a pipeline look like:
+
+```text
+[gate] intent_id=fix_bug confidence=high route=harness_pipeline skill=（无）
+[harness] fix_bug 1/4 locate ok
+[harness] fix_bug 2/4 generate ok
+...
+```
+
+### Offline code graph: `rig build`
+
+Before (or between) harness runs, build a local **RIG** (repository information graph) from Python sources:
+
+```bash
+uv run mini-coding-agent rig build --cwd .
+# or: python mini_coding_agent.py rig build --cwd .
+```
+
+Output database:
+
+```text
+.mini-coding-agent/rig.db
+```
+
+The **`locate`** node queries RIG first (symbols, file paths, 1-hop neighbors), then falls back to `search` / traceback hints if the DB is missing. No cloud services; stdlib `ast` + SQLite only.
+
+### Open fallback (when harness does not run the pipeline)
+
+| Condition | Behavior |
+|-----------|----------|
+| `--harness off` and no `--gate-log` | Direct `ask()` — no Gate LLM |
+| Gate `confidence=low` or invalid `intent_id` | `ask()` |
+| Pipeline node failure or verify retries exhausted | stderr reason, then `ask()` |
+
+`ask()` remains the **supported** entry for exploratory work and when the harness is unsure.
+
+### Harness fields in session JSON
+
+When Gate or pipeline runs, extra fields are stored under `.mini-coding-agent/sessions/<session-id>.json`:
+
+| Field | Meaning |
+|-------|---------|
+| `last_gate` | Latest Gate result: `intent_id`, `confidence`, `route`, optional `skill` |
+| `last_files_touched` | File paths touched in the last pipeline (from locate / generate) |
+| `last_verify` | Last verify summary: `ok`, `method`, `summary` |
+| `harness_last_node` | Observe-only: last completed node `{intent_id, node_id, type, ok}` |
+
+**`/reset`** clears these harness fields along with history, `memory.plan`, and `memory.loaded_skills`.
+
+Gate may optionally return a `skill` name; the pipeline preloads it via `load_skill` before execution.
+
+### `--plan-first` vs Graph Harness
+
+These features are **orthogonal but can conflict in practice**:
+
+- **`--plan-first`** applies to the **`ask()`** loop: each user message must call `make_plan` successfully before the first risky tool in that turn.
+- **`--harness on`** runs the **template pipeline** for high-confidence intents; risky work inside the pipeline uses `run_tool` on dedicated nodes (`generate`, `ops`), not the main ask tool loop.
+
+**Recommendation:** do not combine `--plan-first` with `--harness on` for editing tasks until you understand both gates. If the pipeline’s `generate` node runs while `--plan-first` is set, `make_plan` may not have run in the current **ask** turn and risky tools can be blocked. Prefer **`--harness on` without `--plan-first`**, or use `--harness off --plan-first` for plan-gated open-loop work.
+
+### MVP delivered vs future (5.7+)
+
+| MVP (Phase 5.1–5.6) ✅ | Future (5.7+) |
+|------------------------|---------------|
+| LLM Gate, 5 closed intents | Rule-assisted / hybrid Gate |
+| 5 static DAG templates + Planner | Sixth intent, domain sub-templates |
+| Generic executor + 5 intent E2E tests | Benchmarks, template learning |
+| RIG full rebuild (`rig build`) | Incremental RIG, Graphviz export |
+| Locate: RIG + rg fallback | Vector / BM25 retrieval (needs deps) |
+| Session: `last_gate`, `last_files_touched`, `last_verify` | Richer cross-turn planner injection |
+
+### Known limitations (Phase 5 MVP)
+
+- **Default `--harness off`.** You must opt in to the pipeline.
+- **Gate adds one LLM call** per message when `--harness on` or `--gate-log` is set.
+- **`explain` and `project_ops`** pipelines do not use change governance for file edits by design; `ops` only allows a fixed shell prefix allowlist.
+- **No incremental RIG.** Re-run `rig build` after large refactors.
+- **Tests use `FakeModelClient`.** Real Ollama Gate quality depends on the model.
+
+&nbsp;
 ## Sessions and Resume
 
 The agent saves sessions under the target workspace root in:
@@ -626,7 +749,7 @@ being sent to the model as a normal task.
 - `/session`
   prints the path to the current saved session JSON file
 - `/reset`
-  clears the current session history and distilled memory (including plan and loaded skills) but keeps you in the REPL
+  clears the current session history and distilled memory (including plan, loaded skills, and **harness fields**: `last_gate`, `last_files_touched`, `last_verify`, `harness_last_node`) but keeps you in the REPL
 - `/exit`
   exits the interactive session
 - `/quit`
@@ -682,6 +805,18 @@ Important flags:
   require a successful `make_plan` in each user request before the first risky tool (`write_file`, `patch_file`, `run_shell`); default: off
 - `--skills`
   comma-separated Skill names to preload into session memory at startup (e.g. `code-review,example-skill`); default: none
+- `--harness`
+  Graph Harness: `off` (default, normal `ask()` only) or `on` (Gate + template pipeline for high-confidence intents; failures fall back to `ask()`)
+- `--gate-log`
+  print Gate intent classification to stderr each message; can be used with `--harness off` for observation only
+
+**RIG subcommand** (not a flag on the main agent):
+
+```bash
+uv run mini-coding-agent rig build [--cwd .]
+```
+
+Builds `.mini-coding-agent/rig.db` for the `locate` pipeline node.
 
 &nbsp;
 ## Example

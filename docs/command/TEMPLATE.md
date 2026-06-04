@@ -24,7 +24,7 @@
 
 ## 约束
 
-（边界、规范、禁止项；可引用 `struct/`、各 Phase OVERVIEW §3；含 [`struct/01`](../struct/01-vision-and-roadmap.md) 铁律 §5 **保留用户注释**、§6 **新增代码须有注释**、§7 **用户可见文案中文**（[`04-user-facing-locale`](../struct/04-user-facing-locale.md)））
+（边界、规范、禁止项；可引用 `struct/`、各 Phase OVERVIEW §3；含 [`struct/01`](../struct/01-vision-and-roadmap.md) 铁律 §6 **保留用户注释**、§7 **新增代码须有注释**、§8 **用户可见文案中文**（[`04-user-facing-locale`](../struct/04-user-facing-locale.md)））
 
 
 

@@ -1,7 +1,7 @@
-from mini_coding_agent.agent import MiniAgent
+from mini_coding_agent.modes.open.agent import MiniAgent
 from mini_coding_agent.cli import build_welcome, main
-from mini_coding_agent.hooks.hook_config import HookConfig, load_hook_config
-from mini_coding_agent.hooks import (
+from mini_coding_agent.platform.hooks.hook_config import HookConfig, load_hook_config
+from mini_coding_agent.platform.hooks import (
     HookRegistry,
     ShellAuditHook,
     ToolHookContext,
@@ -9,10 +9,10 @@ from mini_coding_agent.hooks import (
     TraceDisplayHook,
     register_builtin_hooks,
 )
-from mini_coding_agent.models import FakeModelClient, OllamaModelClient
-from mini_coding_agent.session import CheckpointStore, SessionStore
-from mini_coding_agent.util import atomic_write_text, text_sha256, tool_result_success
-from mini_coding_agent.workspace import WorkspaceContext
+from mini_coding_agent.platform.models import FakeModelClient, OllamaModelClient
+from mini_coding_agent.platform.session import CheckpointStore, SessionStore
+from mini_coding_agent.platform.util import atomic_write_text, text_sha256, tool_result_success
+from mini_coding_agent.platform.workspace import WorkspaceContext
 
 __all__ = [
     "CheckpointStore",

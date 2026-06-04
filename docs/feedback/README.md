@@ -6,11 +6,11 @@
 
 ## 命名规范
 
-与任务单一致：
-
 ```
 feedback/<TASK_ID>.md
 ```
+
+与 `command/<TASK_ID>.md` 一一对应。
 
 ---
 
@@ -24,15 +24,48 @@ feedback/<TASK_ID>.md
 
 ---
 
-## 回报索引
+## Phase 5 回报索引
 
-| TASK_ID | 状态 | 主 Agent 结论 |
-|---------|------|---------------|
-| P1-CHANGE-GOVERNANCE | 通过 | 主 Agent 复审 2026-05-29 |
-| P1-DOCS | 通过 | 主 Agent 复审 2026-05-29 |
-| P1-REVIEW | 待审 | 子 Agent 结论：**通过** |
+**struct 契约**：[`struct/phase5-graph.md`](../struct/phase5-graph.md)
 
-*验收后由主 Agent 更新。*
+### 波次 A — Graph MVP（5.1–5.6）
+
+| TASK_ID | 内容 | feedback |
+|---------|------|----------|
+| P5.1-HARNESS-ENTRY | Gate + Runner + CLI | [`P5.1-HARNESS-ENTRY.md`](./P5.1-HARNESS-ENTRY.md) |
+| P5.2-TEMPLATES-PLANNER | 五类模板 + Planner | [`P5.2-TEMPLATES-PLANNER.md`](./P5.2-TEMPLATES-PLANNER.md) |
+| P5.3-FIX-BUG-PIPELINE | 节点 + fix_bug E2E | [`P5.3-FIX-BUG-PIPELINE.md`](./P5.3-FIX-BUG-PIPELINE.md) |
+| P5.4-RIG | index 离线图谱 | [`P5.4-RIG.md`](./P5.4-RIG.md) |
+| P5.5-FIVE-INTENTS | 通用 Executor + 五类 E2E | [`P5.5-FIVE-INTENTS.md`](./P5.5-FIVE-INTENTS.md) |
+| P5.6-SESSION | Harness 会话字段 | [`P5.6-SESSION.md`](./P5.6-SESSION.md) |
+| P5-DOCS | README § Graph Harness | [`P5-DOCS.md`](./P5-DOCS.md) |
+| P5-REVIEW | Phase 5 MVP 总验收 | [`P5-REVIEW.md`](./P5-REVIEW.md) |
+
+### 波次 B — 黄金闭环 / Eval（GL-1–5）
+
+| TASK_ID | 内容 | feedback |
+|---------|------|----------|
+| GL-1-EVAL-INFRA | eval/tasks.json + run_eval.py | [`GL-1-EVAL-INFRA.md`](./GL-1-EVAL-INFRA.md) |
+| GL-2-LOCATE-SNIPPETS | Locate 源码 snippet | [`GL-2-LOCATE-SNIPPETS.md`](./GL-2-LOCATE-SNIPPETS.md) |
+| GL-3-VERIFY-ERROR-FORMAT | Verify 错误摘要 | [`GL-3-VERIFY-ERROR-FORMAT.md`](./GL-3-VERIFY-ERROR-FORMAT.md) |
+| GL-4-FIX-BUG-SLIM | fix_bug 去 review | [`GL-4-FIX-BUG-SLIM.md`](./GL-4-FIX-BUG-SLIM.md) |
+| GL-5-LIVE-EVAL | live Ollama 基线 | [`GL-5-LIVE-EVAL.md`](./GL-5-LIVE-EVAL.md) |
+| GL-REVIEW | 黄金闭环总验收 | [`GL-REVIEW.md`](./GL-REVIEW.md) |
+
+---
+
+## 其他阶段回报（历史）
+
+| 阶段 | 代表 TASK_ID |
+|------|----------------|
+| Phase 1 | P1-CHANGE-GOVERNANCE, P1-DOCS, P1-REVIEW |
+| Phase 2 | P2-HOOK-AND-REFACTOR, P2-DOCS, P2-REVIEW, P2.1-* |
+| Phase 3 | P3-MAKE-PLAN, P3-DOCS, P3-REVIEW |
+| Phase 4 | P4-SKILLS, P4-DOCS, P4-REVIEW |
+| 重构 | R1–R4-*, REFACTOR-REVIEW |
+| 优化 | OPT-ASK-TIMING, OPT-WAIT-DISPLAY, HOOK-ASK-EVENTS |
+
+完整列表见本目录文件名；未在上表列出的文件仍为有效历史记录。
 
 ---
 

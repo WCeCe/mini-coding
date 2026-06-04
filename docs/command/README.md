@@ -1,8 +1,8 @@
 # command — 子 Agent 任务单
 
-主 Agent **只下达目标、约束、验收标准**；具体设计由子 Agent 完成。`struct/` 大阶段文档：`phase1.md` … `phase4.md`。
+主 Agent **只下达目标、约束、验收标准**；具体设计由子 Agent 完成。`struct/` 大阶段文档：`phase1.md` … `phase5-graph.md`。
 
-**工程规范**：各 Phase `OVERVIEW` §3 均引用铁律 §7 — 用户可见文案中文，详见 [`struct/04-user-facing-locale.md`](../struct/04-user-facing-locale.md)。
+**工程规范**：各 Phase `OVERVIEW` §3 均引用铁律 §8 — 用户可见文案中文，详见 [`struct/04-user-facing-locale.md`](../struct/04-user-facing-locale.md)。
 
 ---
 
@@ -44,7 +44,7 @@ Phase 2 分两次派活，同属一个大阶段；struct 见 [`phase2.md`](../st
 
 ---
 
-## Phase 4 任务（进行中）
+## Phase 4 任务（已结项 ✅）
 
 struct 见 [`phase4.md`](../struct/phase4.md)。
 
@@ -57,7 +57,40 @@ struct 见 [`phase4.md`](../struct/phase4.md)。
 
 ---
 
-## Agent 重构（非 Phase · 进行中）
+## Phase 5 任务（Graph 编排 · 已结项 ✅）
+
+struct 见 [`phase5-graph.md`](../struct/phase5-graph.md)。含 **波次 A（5.1–5.6 MVP）** 与 **波次 B（GL-1–5 eval 黄金闭环）**。
+
+### 波次 A — Graph MVP（5.1–5.6）
+
+| 子阶段 | TASK_ID | 说明 | 状态 |
+|--------|---------|------|------|
+| — | [PHASE5-OVERVIEW](./PHASE5-OVERVIEW.md) | 派活索引（历史） | — |
+| 5.1 | [P5.1-HARNESS-ENTRY](./P5.1-HARNESS-ENTRY.md) | Gate + runner + open | ✅ |
+| 5.2 | [P5.2-TEMPLATES-PLANNER](./P5.2-TEMPLATES-PLANNER.md) | 五模板 + Planner | ✅ |
+| 5.3 | [P5.3-FIX-BUG-PIPELINE](./P5.3-FIX-BUG-PIPELINE.md) | 节点 + fix_bug E2E | ✅ |
+| 5.4 | [P5.4-RIG](./P5.4-RIG.md) | index 离线图谱 | ✅ |
+| 5.5 | [P5.5-FIVE-INTENTS](./P5.5-FIVE-INTENTS.md) | 五类 E2E + executor | ✅ |
+| 5.6 | [P5.6-SESSION](./P5.6-SESSION.md) | 会话字段 | ✅ |
+| — | [P5-DOCS](./P5-DOCS.md) / [P5-REVIEW](./P5-REVIEW.md) | 文档 / MVP 验收 | ✅ |
+
+### 波次 B — eval 黄金闭环（GL-1–5）
+
+| 顺序 | TASK_ID | 说明 | 状态 |
+|------|---------|------|------|
+| — | [GOLDEN-LOOP-OVERVIEW](./GOLDEN-LOOP-OVERVIEW.md) | 派活索引（历史） | — |
+| 1 | [GL-1-EVAL-INFRA](./GL-1-EVAL-INFRA.md) | eval 框架 | ✅ |
+| 2 | [GL-2-LOCATE-SNIPPETS](./GL-2-LOCATE-SNIPPETS.md) | Locate snippet | ✅ |
+| 3 | [GL-3-VERIFY-ERROR-FORMAT](./GL-3-VERIFY-ERROR-FORMAT.md) | 错误摘要 | ✅ |
+| 4 | [GL-4-FIX-BUG-SLIM](./GL-4-FIX-BUG-SLIM.md) | fix_bug 瘦模板 | ✅ |
+| 5 | [GL-5-LIVE-EVAL](./GL-5-LIVE-EVAL.md) | live 基线 | ✅ |
+| 6 | [GL-REVIEW](./GL-REVIEW.md) | 总验收 | ✅ |
+
+feedback 索引：[`feedback/README.md`](../feedback/README.md) § Phase 5。
+
+---
+
+## Agent 重构（非 Phase · 已完成 ✅）
 
 `agent.py` 模块拆分 R1→R4。struct 见 [`refactor-agent.md`](../struct/refactor-agent.md)。
 

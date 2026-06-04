@@ -10,11 +10,12 @@
 2. [`phase1.md`](./phase1.md) — 变更治理 ✅
 3. [`phase2.md`](./phase2.md) — Hook + 可观测 + 重构 ✅
 4. [`phase3.md`](./phase3.md) — 任务规划 + coding 链路深度 ✅
-5. [`phase4.md`](./phase4.md) — Skill 加载 🚧（P4-SKILLS 待派活）
-6. [`02-codebase-reference.md`](./02-codebase-reference.md) — 代码架构速查
-7. [`03-collaboration-model.md`](./03-collaboration-model.md) — 主/子 Agent 分工
-8. [`04-user-facing-locale.md`](./04-user-facing-locale.md) — 用户可见文案中文规范（铁律 §7）
-9. [`refactor-agent.md`](./refactor-agent.md) — Agent 模块重构（非 Phase）✅
+5. [`phase4.md`](./phase4.md) — Skill 加载 ✅
+6. [`phase5-graph.md`](./phase5-graph.md) — Graph 编排（DAG + Gate + eval 黄金闭环）✅
+7. [`02-codebase-reference.md`](./02-codebase-reference.md) — 代码架构速查
+8. [`03-collaboration-model.md`](./03-collaboration-model.md) — 主/子 Agent 分工
+9. [`04-user-facing-locale.md`](./04-user-facing-locale.md) — 用户可见文案中文规范（铁律 §8）
+10. [`refactor-agent.md`](./refactor-agent.md) — Agent 模块重构（非 Phase）✅
 
 ---
 
@@ -26,8 +27,10 @@
 | `phase2.md` | Hook 扩展 + 三层栈 + 包重构 + YAML | ✅ |
 | `phase3.md` | 任务规划 + coding 链路深度 | ✅ |
 | `phase4.md` | Skill 加载与可扩展工作流 | ✅ |
+| `phase5-graph.md` | Graph 编排：Gate、DAG、index、eval 黄金闭环 | ✅ 结项 2026-06-04 |
 
-> 原 Phase 2.1（终端 trace、shell 审计、YAML）已并入 `phase2.md`，不再单独成阶段。
+> 原 Phase 2.1（终端 trace、shell 审计、YAML）已并入 `phase2.md`，不再单独成阶段。  
+> 原 `phase5-graph.md` + `phase5-graph.md` 已合并为 `phase5-graph.md`。
 
 ---
 
@@ -39,6 +42,9 @@
 | Phase 2（含 Hook 用户价值） | ✅ |
 | Phase 3 | ✅ 已结项（make_plan + docs） |
 | Phase 4（Skills + 文档 + REVIEW） | ✅ P4-REVIEW 2026-06-02 |
-| 测试 | 82 passed, 1 skipped |
-| benchmark | 暂缓（设计稳后再量化） |
+| benchmark | 暂缓（eval 任务集扩展见 phase5-graph §9） |
 | Agent 重构（R1–R4 + REVIEW） | ✅ 2026-06-02 |
+| **Phase 5（Graph 编排）** | ✅ **结项**（P5-REVIEW + GL-REVIEW · live 2/5） |
+| 目录结构 platform/modes/index | ✅ 2026-06-04 |
+| Hook / Skill / 五类其余意图 live | ⏸ 保留，暂不迭代 |
+| 测试 | 167 passed, 1 skipped |

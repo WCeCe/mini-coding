@@ -1,0 +1,68 @@
+[
+  {
+    "id": "nameerror_calc",
+    "description": "traceback 含 calc.py，NameError 修复为 a+b",
+    "message": "Traceback (most recent call last):\n  File \"calc.py\", line 2, in add\n    return a + c\nNameError: name 'c' is not defined",
+    "setup_files": {
+      "calc.py": "def add(a, b):\n    return a + c\n"
+    },
+    "expect_files": {
+      "calc.py": "def add(a, b):\n    return a + b\n"
+    },
+    "verify": "py_compile",
+    "harness_intent": "fix_bug"
+  },
+  {
+    "id": "syntaxerror_paren",
+    "description": "calc.py 左括号未闭合，SyntaxError",
+    "message": "  File \"calc.py\", line 2\n    return (a + b\n              ^\nSyntaxError: '(' was never closed",
+    "setup_files": {
+      "calc.py": "def add(a, b):\n    return (a + b\n"
+    },
+    "expect_files": {
+      "calc.py": "def add(a, b):\n    return (a + b)\n"
+    },
+    "verify": "py_compile",
+    "harness_intent": "fix_bug"
+  },
+  {
+    "id": "nameerror_greet",
+    "description": "greet.py 使用未定义变量 msg",
+    "message": "Traceback (most recent call last):\n  File \"greet.py\", line 2, in greet\n    return msg\nNameError: name 'msg' is not defined",
+    "setup_files": {
+      "greet.py": "def greet(name):\n    return msg\n"
+    },
+    "expect_files": {
+      "greet.py": "def greet(name):\n    return name\n"
+    },
+    "verify": "py_compile",
+    "harness_intent": "fix_bug"
+  },
+  {
+    "id": "off_by_one_sum",
+    "description": "sum_first 循环上界 off-by-one，pytest 失败",
+    "message": "pytest 失败：tests/test_sum.py::test_sum_first — assert sum_first(3) == 6，实际得到 3",
+    "setup_files": {
+      "sum_first.py": "def sum_first(n):\n    s = 0\n    for i in range(1, n):\n        s += i\n    return s\n",
+      "tests/test_sum.py": "from sum_first import sum_first\n\ndef test_sum_first():\n    assert sum_first(3) == 6\n"
+    },
+    "expect_files": {
+      "sum_first.py": "def sum_first(n):\n    s = 0\n    for i in range(1, n + 1):\n        s += i\n    return s\n"
+    },
+    "verify": "pytest",
+    "harness_intent": "fix_bug"
+  },
+  {
+    "id": "wrong_operator_calc",
+    "description": "calc.py 误用减法，逻辑应改为加法",
+    "message": "calc.add(2, 3) 返回 -1，应为 5；请修复 calc.py",
+    "setup_files": {
+      "calc.py": "def add(a, b):\n    return a - b\n"
+    },
+    "expect_files": {
+      "calc.py": "def add(a, b):\n    return a + b\n"
+    },
+    "verify": "py_compile",
+    "harness_intent": "fix_bug"
+  }
+]

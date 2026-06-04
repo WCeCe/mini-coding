@@ -31,7 +31,7 @@
 - **容错**：单个坏 Skill 跳过 + warn（参考 hooks 配置 warn 模式）；目录缺失不 fatal
 - **`/reset`**：清空 `loaded_skills`（与 plan/notes 等 memory 一并重置）
 - **frontmatter MVP**：`name`、`description`；其他 Claude Code 字段本项**不实现**
-- **保留用户注释** + **新增代码带注释**（铁律 §5–§6）
+- **保留用户注释** + **新增代码带注释**（铁律 §7）
 - **用户可见文案中文**；工具名/参数名/frontmatter 键保持英文
 
 ---

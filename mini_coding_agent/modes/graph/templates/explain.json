@@ -1,0 +1,7 @@
+{
+  "intent_id": "explain",
+  "nodes": [
+    {"id": "locate", "type": "locate", "deps": []},
+    {"id": "explain", "type": "explain", "deps": ["locate"]}
+  ]
+}
