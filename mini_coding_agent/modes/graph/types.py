@@ -44,11 +44,14 @@ DEFAULT_OPS_ALLOWLIST = (
     "git log",
 )
 
-
+"""llm的gate输出"""
 @dataclass
 class GateResult:
+    #五类意图的哪一个
     intent_id: str
+    #可信度高还是低
     confidence: Confidence
+    #走pipeline还是open
     route: Route
     skill: Optional[str] = None
     raw: Optional[str] = None
@@ -64,7 +67,7 @@ class GateResult:
             data["skill"] = self.skill
         return data
 
-
+"""DAG的上一个节点"""
 @dataclass
 class DagNode:
     id: str
@@ -77,7 +80,7 @@ class RetryPolicy:
     on_fail: str
     max: int
 
-
+"""DAG的槽位"""
 @dataclass
 class DagSlots:
     goal: str
@@ -87,7 +90,7 @@ class DagSlots:
     skill_name: Optional[str] = None
     ops_allowlist: Optional[list[str]] = None
 
-
+"""一次流水线的完整示例"""
 @dataclass
 class DagInstance:
     intent_id: str
@@ -105,7 +108,7 @@ class NodeResult:
     message: str
     data: dict = field(default_factory=dict)
 
-
+"""「整条流水线 / 整个任务」的执行上下文"""
 @dataclass
 class HarnessContext:
     agent: object
@@ -114,6 +117,8 @@ class HarnessContext:
     node_outputs: dict[str, NodeResult] = field(default_factory=dict)
     generate_attempt: int = 0
     last_verify_error: str = ""
+    test_baseline: dict[str, str] = field(default_factory=dict)
+    locate_min_snippets_with_source_lines: int = 0
 
 
 @dataclass

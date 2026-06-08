@@ -54,6 +54,20 @@ def run_locate(ctx: HarnessContext) -> NodeResult:
 
     _ensure_source_snippet(agent, slots, seen_files, seen_ranges, files, snippets)
 
+    min_required = ctx.locate_min_snippets_with_source_lines
+    snippet_count = sum(1 for s in snippets if has_source_lines(s))
+    if min_required > 0 and snippet_count < min_required:
+        return NodeResult(
+            ok=False,
+            message="locate：无有效源码 snippet",
+            data={
+                "files": files,
+                "snippets": snippets,
+                "symbols_hint": list(slots.symbols_hint),
+                "used_rig": used_rig,
+            },
+        )
+
     source = "rig+回退" if used_rig else "hint+search"
     return NodeResult(
         ok=True,

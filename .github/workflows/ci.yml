@@ -49,6 +49,7 @@ jobs:
 
       - name: Run tests with pip
         if: matrix.installer == 'pip'
+        # L1–L3 由 pytest 承担（tests/diagnostic/、test_eval_contract.py、harness 等）；L4 live 不纳入 CI
         run: python -m pytest -q
 
       - name: Lint with uv
@@ -57,4 +58,5 @@ jobs:
 
       - name: Run tests with uv
         if: matrix.installer == 'uv'
+        # L1–L3 由 pytest 承担；L4 live 不纳入 CI
         run: uv run python -m pytest -q

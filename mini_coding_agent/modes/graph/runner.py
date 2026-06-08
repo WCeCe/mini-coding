@@ -1,5 +1,9 @@
-"""Graph Harness 编排入口（Phase 5.1 Gate + 5.5 五类 pipeline）。"""
+"""Graph Harness 编排入口（Phase 5.1 Gate + 5.5 五类 pipeline）。
 
+--harness off：完全 bypass，直接 open loop
+--harness on：先 Gate，再走 pipeline；失败降级 agent.ask(message)
+--gate-log：只打 Gate 日志，可以不跑 pipeline
+"""
 import sys
 
 from mini_coding_agent.modes.graph.gate import classify_gate

@@ -15,6 +15,7 @@ HARNESS_SESSION_KEYS = (
     "last_files_touched",
     "last_verify",
     "harness_last_node",
+    "harness_node_outputs",
 )
 
 FILES_TOUCHED_LIMIT = 8
@@ -26,6 +27,7 @@ def empty_harness_fields() -> dict:
         "last_files_touched": [],
         "last_verify": None,
         "harness_last_node": None,
+        "harness_node_outputs": None,
     }
 
 
@@ -35,6 +37,7 @@ def ensure_harness_session_shape(session: dict) -> None:
     session.setdefault("last_files_touched", [])
     session.setdefault("last_verify", None)
     session.setdefault("harness_last_node", None)
+    session.setdefault("harness_node_outputs", None)
 
 
 def clear_harness_session(session: dict) -> None:
@@ -59,11 +62,23 @@ def persist_last_gate(agent, gate_dict: dict) -> None:
 
 
 def persist_pipeline_session(agent, ctx: HarnessContext, pipeline_result: PipelineResult) -> None:
-    """流水线结束后写入 last_files_touched / last_verify。"""
+    """流水线结束后写入 last_files_touched / last_verify / harness_node_outputs。"""
     ensure_harness_session_shape(agent.session)
     agent.session["last_files_touched"] = _collect_files_touched(ctx)
     agent.session["last_verify"] = _summarize_verify(ctx, pipeline_result)
+    agent.session["harness_node_outputs"] = _serialize_node_outputs(ctx)
     _save(agent)
+
+
+def _serialize_node_outputs(ctx: HarnessContext) -> dict:
+    result: dict = {}
+    for node_id, nr in ctx.node_outputs.items():
+        result[node_id] = {
+            "ok": nr.ok,
+            "message": nr.message,
+            "data": dict(nr.data),
+        }
+    return result
 
 
 def observe_post_node(agent, dag: DagInstance, node: DagNode, result: NodeResult) -> None:

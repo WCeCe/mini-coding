@@ -1,14 +1,34 @@
-"""verify 节点：pytest 或 py_compile。"""
+"""verify 节点：pytest（含 tests/ 时）或 py_compile。"""
 
 import py_compile
+from pathlib import Path
 
 from mini_coding_agent.modes.graph.types import HarnessContext, NodeResult
+from mini_coding_agent.modes.graph.verify_rules import (
+    check_generate_did_not_touch_tests,
+    check_tests_snapshot_unchanged,
+    resolve_test_command,
+)
 
 
 def run_verify(ctx: HarnessContext) -> NodeResult:
-    slots = ctx.dag.slots
-    if slots.test_command:
-        return _run_test_command(ctx, slots.test_command)
+    agent = ctx.agent
+    root = Path(agent.root)
+
+    generate = ctx.node_outputs.get("generate")
+    gen_path = generate.data.get("path") if generate else None
+    lock_err = check_generate_did_not_touch_tests(gen_path)
+    if lock_err:
+        return NodeResult(ok=False, message=lock_err, data={"method": "lock_tests"})
+
+    lock_err = check_tests_snapshot_unchanged(root, ctx.test_baseline)
+    if lock_err:
+        return NodeResult(ok=False, message=lock_err, data={"method": "lock_tests"})
+
+    test_command = resolve_test_command(root, ctx.dag.slots.test_command)
+    if test_command:
+        return _run_test_command(ctx, test_command)
+
     return _run_py_compile(ctx)
 
 

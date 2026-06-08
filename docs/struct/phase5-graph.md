@@ -251,9 +251,8 @@ Phase 5 第二波：在模块齐套后，用 **eval 驱动** 验证真实 `fix_b
 ### 7.3 Eval 用法
 
 ```bash
-python eval/run_eval.py --fake          # CI / 回归，须 5/5
-python eval/run_eval.py --live          # 真实 Ollama 基线
-python eval/run_eval.py --fake --task nameerror_calc
+python eval/run_eval.py          # Ollama 真实模型
+python eval/run_eval.py --task nameerror_calc
 ```
 
 契约与字段：[`eval/README.md`](../../eval/README.md)。
@@ -307,14 +306,15 @@ python eval/run_eval.py --fake --task nameerror_calc
 
 ## 9. 5.8+ 优化路线
 
-| 编号 | 方向 |
-|------|------|
-| 5.8 | Gate 混合（规则 + LLM） |
-| 5.9 | index 增量 rebuild |
-| 5.10 | 检索增强（邻居 + 关键词） |
-| 5.11 | 第六类意图 / 领域子模板 |
-| 5.12 | Graphviz DAG 导出 |
-| 5.13 | eval 任务集扩展（15–20 条）· generate 鲁棒性 |
+| 编号 | 方向 | 状态 |
+|------|------|------|
+| **EV 波次 C** | eval 修复与加固（verify 对齐、grading、任务分档、基线） | 📋 进行中 → [`eval-repair-plan.md`](./eval-repair-plan.md) |
+| 5.8 | Gate 混合（规则 + LLM） | 按需 |
+| 5.9 | index 增量 rebuild | 按需 |
+| 5.10 | 检索增强（邻居 + 关键词） | 按需 |
+| 5.11 | 第六类意图 / 领域子模板 | 按需 |
+| 5.12 | Graphviz DAG 导出 | 按需 |
+| 5.13 | eval 任务集扩展 · generate 鲁棒性 | **并入 EV-3/4/5** |
 
 ---
 
@@ -326,7 +326,7 @@ python eval/run_eval.py --fake --task nameerror_calc
 | Generate 格式 / patch 失败 | live 主瓶颈；解析容错 + retry（5.8+） |
 | Fake 5/5 自嗨 | 必须对照 live 基线 |
 | explain/ops 误写盘 | explain 禁工具；ops 白名单 |
-| eval expect_files vs harness verify 双标准 | 文档说明；后续结构化报告 |
+| eval expect_files vs harness verify 双标准 | **EV-1** 修复；EV-6 结构化报告 |
 
 ---
 

@@ -2,10 +2,13 @@
 
 import sys
 
+from pathlib import Path
+
 from mini_coding_agent.modes.graph.error_format import format_error_for_model
 from mini_coding_agent.modes.graph.nodes import NODE_RUNNERS
 from mini_coding_agent.modes.graph.nodes.verify import _modified_python_paths
 from mini_coding_agent.modes.graph.session_ctx import observe_post_node, persist_pipeline_session
+from mini_coding_agent.modes.graph.verify_rules import collect_tests_snapshot
 from mini_coding_agent.modes.graph.types import (
     DagInstance,
     DagNode,
@@ -17,7 +20,14 @@ from mini_coding_agent.modes.graph.types import (
 
 def execute_dag(agent, dag: DagInstance, user_message: str) -> PipelineResult:
     """按拓扑执行 DAG；verify 失败时按 retry 策略回退 generate。"""
-    ctx = HarnessContext(agent=agent, dag=dag, user_message=user_message)
+    locate_min = getattr(agent, "_harness_locate_min_snippets", 0) or 0
+    ctx = HarnessContext(
+        agent=agent,
+        dag=dag,
+        user_message=user_message,
+        test_baseline=collect_tests_snapshot(Path(agent.root)),
+        locate_min_snippets_with_source_lines=locate_min,
+    )
     order = topological_sort(dag.nodes)
     verify_policy = dag.retry.get("verify")
     verify_retries = 0

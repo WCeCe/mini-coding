@@ -1,5 +1,4 @@
-"""LLM 意图分类 Gate（Phase 5.1）：每 ask 一次 complete。"""
-
+"""LLM 意图分类 Gate（Phase 5.1）：每 ask 一次 complete；调模型 → 解析 JSON → 产出 GateResult。"""
 import json
 
 from mini_coding_agent.modes.graph.gate_prompt import build_gate_prompt

@@ -4,34 +4,84 @@ import json
 import re
 
 
+def _json_tool_body_candidates(body):
+    """生成 JSON tool 正文候选（容忍尾部多余 `}` 等常见模型笔误）。"""
+    text = body.strip()
+    if not text:
+        return
+    yield text
+    trimmed = text.rstrip()
+    while trimmed.endswith("}") and trimmed.count("{") < trimmed.count("}"):
+        trimmed = trimmed[:-1].rstrip()
+        yield trimmed
+
+
+def _extract_quoted_json_field(body, field):
+    """从 tool JSON 正文中提取字符串字段（容忍值内含单引号 / f-string 花括号）。"""
+    pattern = rf'"{re.escape(field)}"\s*:\s*"((?:[^"\\]|\\.)*)"'
+    match = re.search(pattern, body)
+    if not match:
+        return None
+    return bytes(match.group(1), "utf-8").decode("unicode_escape")
+
+
+def _parse_tool_json_relaxed(body):
+    """解析 <tool>{...}</tool> 内 JSON；标准 json.loads 失败时做有限容错。"""
+    text = body.strip()
+    fence = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text, re.I)
+    if fence:
+        text = fence.group(1).strip()
+    for candidate in _json_tool_body_candidates(text):
+        try:
+            payload = json.loads(candidate)
+        except json.JSONDecodeError:
+            continue
+        if isinstance(payload, dict) and str(payload.get("name", "")).strip():
+            return payload
+
+    name_match = re.search(r'"name"\s*:\s*"([^"]+)"', text)
+    if not name_match:
+        return None
+    name = name_match.group(1).strip()
+    if name == "patch_file":
+        path = _extract_quoted_json_field(text, "path")
+        old_text = _extract_quoted_json_field(text, "old_text")
+        new_text = _extract_quoted_json_field(text, "new_text")
+        if path and old_text is not None and new_text is not None:
+            return {"name": name, "args": {"path": path, "old_text": old_text, "new_text": new_text}}
+    if name == "write_file":
+        path = _extract_quoted_json_field(text, "path")
+        content = _extract_quoted_json_field(text, "content")
+        if path and content is not None:
+            return {"name": name, "args": {"path": path, "content": content}}
+    return None
+
+
+def _normalize_tool_payload(payload):
+    if not isinstance(payload, dict):
+        return None
+    if not str(payload.get("name", "")).strip():
+        return None
+    args = payload.get("args", {})
+    if args is None:
+        payload["args"] = {}
+    elif not isinstance(args, dict):
+        return None
+    return payload
+
+
 # 解析模型返回的结果
 def parse(raw):
     raw = str(raw)
     # tool首先存在，并且tool的位置比final靠前
     if "<tool>" in raw and ("<final>" not in raw or raw.find("<tool>") < raw.find("<final>")):
         body = extract(raw, "tool")
-        try:
-            # 将一个 JSON 格式的字符串解析（反序列化）成 Python 对象
-            # payload的格式是字典，例子：{"name": "write_file", "args": {"path": "foo.py", "content": "..."}}
-            payload = json.loads(body)
-        except Exception:
-            # 如果解析失败，返回一个提示模型重试的消息(模型返回了错误格式的json)
-            return "retry", retry_notice("模型返回的 tool JSON 格式错误")
-        if not isinstance(payload, dict):
-            # 需要是json格式
-            return "retry", retry_notice("tool 载荷必须是 JSON 对象")
-        if not str(payload.get("name", "")).strip():
-            return "retry", retry_notice("tool 载荷缺少工具名 name")
-        # 获取args
-        args = payload.get("args", {})
-        if args is None:
-            payload["args"] = {}
-        elif not isinstance(args, dict):
-            # 不符合格式就重试
-            return "retry", retry_notice()
-        return "tool", payload
+        payload = _normalize_tool_payload(_parse_tool_json_relaxed(body))
+        if payload is not None:
+            return "tool", payload
+        return "retry", retry_notice("模型返回的 tool JSON 格式错误")
     # tool首先存在，并且tool的位置比final靠前，且tool的格式是XML格式，类似这样：<tool name
-    if "<tool" in raw and ("<final>" not in raw or raw.find("<tool") < raw.find("<final>")):
+    if re.search(r"<tool\s+\w", raw) and ("<final>" not in raw or raw.find("<tool") < raw.find("<final>")):
         payload = parse_xml_tool(raw)
         if payload is not None:
             return "tool", payload

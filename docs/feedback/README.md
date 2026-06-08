@@ -52,6 +52,21 @@ feedback/<TASK_ID>.md
 | GL-5-LIVE-EVAL | live Ollama 基线 | [`GL-5-LIVE-EVAL.md`](./GL-5-LIVE-EVAL.md) |
 | GL-REVIEW | 黄金闭环总验收 | [`GL-REVIEW.md`](./GL-REVIEW.md) |
 
+### 波次 C — Eval 修复与加固（EV-1–7）
+
+**struct 契约**：[`struct/eval-repair-plan.md`](../struct/eval-repair-plan.md)
+
+| TASK_ID | 内容 | feedback |
+|---------|------|----------|
+| EV-1-VERIFY-ALIGN | verify 与 eval 对齐 | [`EV-1-VERIFY-ALIGN.md`](./EV-1-VERIFY-ALIGN.md) |
+| EV-2-GRADING-SCHEMA | tier / grading | [`EV-2-GRADING-SCHEMA.md`](./EV-2-GRADING-SCHEMA.md) |
+| EV-3-GENERATE-ROBUST | Generate 鲁棒性 | [`EV-3-GENERATE-ROBUST.md`](./EV-3-GENERATE-ROBUST.md) |
+| EV-4-TASKS-EASY | 简单档任务集 | [`EV-4-TASKS-EASY.md`](./EV-4-TASKS-EASY.md) |
+| EV-5-TASKS-MEDIUM | 一般档任务集 | [`EV-5-TASKS-MEDIUM.md`](./EV-5-TASKS-MEDIUM.md) |
+| EV-6-BASELINE-REPORT | 基线对比 | [`EV-6-BASELINE-REPORT.md`](./EV-6-BASELINE-REPORT.md) |
+| EV-7-DOCS-CI | 文档 + CI | [`EV-7-DOCS-CI.md`](./EV-7-DOCS-CI.md) |
+| EV-REVIEW | 波次 C 总验收 | [`EV-REVIEW.md`](./EV-REVIEW.md) |
+
 ---
 
 ## 其他阶段回报（历史）

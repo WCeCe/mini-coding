@@ -107,6 +107,24 @@ feedback 索引：[`feedback/README.md`](../feedback/README.md) § Phase 5。
 
 ---
 
+## Eval 波次 C — 修复与加固（进行中 📋）
+
+struct 见 [`eval-repair-plan.md`](../struct/eval-repair-plan.md)。
+
+| 顺序 | TASK_ID | 说明 | 状态 |
+|------|---------|------|------|
+| — | [EVAL-REPAIR-OVERVIEW](./EVAL-REPAIR-OVERVIEW.md) | 派活索引 | — |
+| 1 | [EV-1-VERIFY-ALIGN](./EV-1-VERIFY-ALIGN.md) | verify 与 eval 对齐 | ⬜ |
+| 2 | [EV-2-GRADING-SCHEMA](./EV-2-GRADING-SCHEMA.md) | tier / grading | ⬜ |
+| 3 | [EV-3-GENERATE-ROBUST](./EV-3-GENERATE-ROBUST.md) | Generate 鲁棒性 | ⬜ |
+| 4 | [EV-4-TASKS-EASY](./EV-4-TASKS-EASY.md) | 简单档 ≥12 条 | ⬜ |
+| 5 | [EV-5-TASKS-MEDIUM](./EV-5-TASKS-MEDIUM.md) | 一般档 ≥3 条 | ⬜ |
+| 6 | [EV-6-BASELINE-REPORT](./EV-6-BASELINE-REPORT.md) | 基线对比 | ⬜ |
+| 7 | [EV-7-DOCS-CI](./EV-7-DOCS-CI.md) | 文档 + CI | ⬜ |
+| 8 | [EV-REVIEW](./EV-REVIEW.md) | 总验收 | ⬜ |
+
+---
+
 ## UX 优化（非 Phase）
 
 | TASK_ID | 说明 | 状态 |

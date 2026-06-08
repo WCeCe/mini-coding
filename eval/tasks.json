@@ -1,6 +1,8 @@
 [
   {
     "id": "nameerror_calc",
+    "tier": "easy",
+    "grading": "exact",
     "description": "traceback 含 calc.py，NameError 修复为 a+b",
     "message": "Traceback (most recent call last):\n  File \"calc.py\", line 2, in add\n    return a + c\nNameError: name 'c' is not defined",
     "setup_files": {
@@ -10,10 +12,47 @@
       "calc.py": "def add(a, b):\n    return a + b\n"
     },
     "verify": "py_compile",
-    "harness_intent": "fix_bug"
+    "harness_intent": "fix_bug",
+    "architecture": {
+      "intent": "fix_bug",
+      "gate": {
+        "route": "harness_pipeline",
+        "confidence": "high",
+        "intent_id": "fix_bug"
+      },
+      "pipeline_must_succeed": true,
+      "no_open_fallback": true,
+      "locate": {
+        "must_include_files": ["calc.py"],
+        "min_snippets_with_source_lines": 1
+      },
+      "verify": {
+        "method": "py_compile"
+      },
+      "generate_max_attempts": 1,
+      "must_modify": ["calc.py"],
+      "must_not_modify_prefixes": ["tests/"]
+    },
+    "fake_script": [
+      {
+        "gate": {
+          "intent_id": "fix_bug",
+          "confidence": "high"
+        }
+      },
+      {
+        "patch": {
+          "path": "calc.py",
+          "old_text": "return a + c",
+          "new_text": "return a + b"
+        }
+      }
+    ]
   },
   {
     "id": "syntaxerror_paren",
+    "tier": "easy",
+    "grading": "exact",
     "description": "calc.py 左括号未闭合，SyntaxError",
     "message": "  File \"calc.py\", line 2\n    return (a + b\n              ^\nSyntaxError: '(' was never closed",
     "setup_files": {
@@ -27,6 +66,8 @@
   },
   {
     "id": "nameerror_greet",
+    "tier": "easy",
+    "grading": "exact",
     "description": "greet.py 使用未定义变量 msg",
     "message": "Traceback (most recent call last):\n  File \"greet.py\", line 2, in greet\n    return msg\nNameError: name 'msg' is not defined",
     "setup_files": {
@@ -40,6 +81,9 @@
   },
   {
     "id": "off_by_one_sum",
+    "tier": "easy",
+    "grading": "tests_only",
+    "lock_tests": true,
     "description": "sum_first 循环上界 off-by-one，pytest 失败",
     "message": "pytest 失败：tests/test_sum.py::test_sum_first — assert sum_first(3) == 6，实际得到 3",
     "setup_files": {
@@ -50,10 +94,43 @@
       "sum_first.py": "def sum_first(n):\n    s = 0\n    for i in range(1, n + 1):\n        s += i\n    return s\n"
     },
     "verify": "pytest",
-    "harness_intent": "fix_bug"
+    "harness_intent": "fix_bug",
+    "architecture": {
+      "intent": "fix_bug",
+      "gate": {
+        "route": "harness_pipeline",
+        "confidence": "high",
+        "intent_id": "fix_bug"
+      },
+      "pipeline_must_succeed": true,
+      "no_open_fallback": true,
+      "verify": {
+        "method": "pytest"
+      },
+      "generate_max_attempts": 1,
+      "must_modify": ["sum_first.py"],
+      "must_not_modify_prefixes": ["tests/"]
+    },
+    "fake_script": [
+      {
+        "gate": {
+          "intent_id": "fix_bug",
+          "confidence": "high"
+        }
+      },
+      {
+        "patch": {
+          "path": "sum_first.py",
+          "old_text": "for i in range(1, n):",
+          "new_text": "for i in range(1, n + 1):"
+        }
+      }
+    ]
   },
   {
     "id": "wrong_operator_calc",
+    "tier": "easy",
+    "grading": "exact",
     "description": "calc.py 误用减法，逻辑应改为加法",
     "message": "calc.add(2, 3) 返回 -1，应为 5；请修复 calc.py",
     "setup_files": {
@@ -63,6 +140,384 @@
       "calc.py": "def add(a, b):\n    return a + b\n"
     },
     "verify": "py_compile",
+    "harness_intent": "fix_bug"
+  },
+  {
+    "id": "importerror_sqrt",
+    "tier": "easy",
+    "grading": "tests_only",
+    "lock_tests": true,
+    "description": "sqrt_fn.py 误导入 math.sqr，ImportError",
+    "message": "Traceback (most recent call last):\n  File \"sqrt_fn.py\", line 1, in <module>\n    from math import sqr\nImportError: cannot import name 'sqr' from 'math'",
+    "setup_files": {
+      "sqrt_fn.py": "from math import sqr\n\ndef root(x):\n    return sqr(x)\n",
+      "tests/test_sqrt.py": "from sqrt_fn import root\n\ndef test_root():\n    assert root(9) == 3\n"
+    },
+    "expect_files": {
+      "sqrt_fn.py": "from math import sqrt\n\ndef root(x):\n    return sqrt(x)\n"
+    },
+    "verify": "pytest",
+    "harness_intent": "fix_bug"
+  },
+  {
+    "id": "missing_return_abs",
+    "tier": "easy",
+    "grading": "tests_only",
+    "lock_tests": true,
+    "description": "abs_val 末尾 pass 缺 return，pytest 失败",
+    "message": "pytest 失败：tests/test_abs.py::test_abs — assert abs_val(-3) == 3，实际得到 None",
+    "setup_files": {
+      "abs_val.py": "def abs_val(x):\n    if x < 0:\n        x = -x\n    pass\n",
+      "tests/test_abs.py": "from abs_val import abs_val\n\ndef test_abs():\n    assert abs_val(-3) == 3\n    assert abs_val(5) == 5\n"
+    },
+    "expect_files": {
+      "abs_val.py": "def abs_val(x):\n    if x < 0:\n        x = -x\n    return x\n"
+    },
+    "verify": "pytest",
+    "harness_intent": "fix_bug"
+  },
+  {
+    "id": "wrong_comparison_max",
+    "tier": "easy",
+    "grading": "exact",
+    "description": "maximum 比较符写反，应保留较大值",
+    "message": "maximum(5, 3) 返回 3，应为 5；请修复 maximum.py",
+    "setup_files": {
+      "maximum.py": "def maximum(a, b):\n    if a < b:\n        return a\n    return b\n"
+    },
+    "expect_files": {
+      "maximum.py": "def maximum(a, b):\n    if a < b:\n        return b\n    return a\n"
+    },
+    "verify": "py_compile",
+    "harness_intent": "fix_bug"
+  },
+  {
+    "id": "syntaxerror_colon",
+    "tier": "easy",
+    "grading": "exact",
+    "description": "adder.py 函数定义缺少冒号，SyntaxError",
+    "message": "  File \"adder.py\", line 1\n    def add(a, b)\n                 ^\nSyntaxError: expected ':'",
+    "setup_files": {
+      "adder.py": "def add(a, b)\n    return a + b\n"
+    },
+    "expect_files": {
+      "adder.py": "def add(a, b):\n    return a + b\n"
+    },
+    "verify": "py_compile",
+    "harness_intent": "fix_bug"
+  },
+  {
+    "id": "nameerror_index",
+    "tier": "easy",
+    "grading": "exact",
+    "description": "first_item 使用未定义 idx，应为 0",
+    "message": "Traceback (most recent call last):\n  File \"first_item.py\", line 2, in first\n    return items[idx]\nNameError: name 'idx' is not defined",
+    "setup_files": {
+      "first_item.py": "def first(items):\n    return items[idx]\n"
+    },
+    "expect_files": {
+      "first_item.py": "def first(items):\n    return items[0]\n"
+    },
+    "verify": "py_compile",
+    "harness_intent": "fix_bug"
+  },
+  {
+    "id": "off_by_one_range",
+    "tier": "easy",
+    "grading": "tests_only",
+    "lock_tests": true,
+    "description": "count_down 循环上界 off-by-one，少计一次",
+    "message": "pytest 失败：tests/test_count.py::test_count — assert count_down(3) == 3，实际得到 2",
+    "setup_files": {
+      "count_down.py": "def count_down(n):\n    c = 0\n    for i in range(n - 1, 0, -1):\n        c += 1\n    return c\n",
+      "tests/test_count.py": "from count_down import count_down\n\ndef test_count():\n    assert count_down(3) == 3\n"
+    },
+    "expect_files": {
+      "count_down.py": "def count_down(n):\n    c = 0\n    for i in range(n, 0, -1):\n        c += 1\n    return c\n"
+    },
+    "verify": "pytest",
+    "harness_intent": "fix_bug"
+  },
+  {
+    "id": "empty_body_double",
+    "tier": "easy",
+    "grading": "exact",
+    "description": "double 函数体为 pass，缺实际逻辑",
+    "message": "double(4) 返回 None，应为 8；请修复 double.py",
+    "setup_files": {
+      "double.py": "def double(x):\n    pass\n"
+    },
+    "expect_files": {
+      "double.py": "def double(x):\n    return x * 2\n"
+    },
+    "verify": "py_compile",
+    "harness_intent": "fix_bug"
+  },
+  {
+    "id": "no_file_hint_add",
+    "tier": "medium",
+    "grading": "tests_only",
+    "lock_tests": true,
+    "description": "消息无路径/traceback，须从符号 add 推断 calc.py",
+    "message": "调用 add(2, 3) 得到 -1，正确结果应为 5。请修复加法实现。",
+    "setup_files": {
+      "calc.py": "def add(a, b):\n    return a - b\n",
+      "tests/test_calc.py": "from calc import add\n\ndef test_add():\n    assert add(2, 3) == 5\n"
+    },
+    "expect_files": {
+      "calc.py": "def add(a, b):\n    return a + b\n"
+    },
+    "verify": "pytest",
+    "harness_intent": "fix_bug"
+  },
+  {
+    "id": "bench_retry_off_by_one",
+    "tier": "medium",
+    "dimension": "retry",
+    "grading": "tests_only",
+    "lock_tests": true,
+    "description": "第一次 patch 故意错误，verify fail 后 retry 成功",
+    "message": "pytest 失败：tests/test_sum.py::test_sum_first — assert sum_first(3) == 6，实际得到 3",
+    "setup_files": {
+      "sum_first.py": "def sum_first(n):\n    s = 0\n    for i in range(1, n):\n        s += i\n    return s\n",
+      "tests/test_sum.py": "from sum_first import sum_first\n\ndef test_sum_first():\n    assert sum_first(3) == 6\n"
+    },
+    "verify": "pytest",
+    "harness_intent": "fix_bug",
+    "architecture": {
+      "intent": "fix_bug",
+      "gate": {
+        "route": "harness_pipeline",
+        "confidence": "high",
+        "intent_id": "fix_bug"
+      },
+      "pipeline_must_succeed": true,
+      "no_open_fallback": true,
+      "verify": {
+        "method": "pytest"
+      },
+      "generate_max_attempts": 2,
+      "must_modify": ["sum_first.py"],
+      "must_not_modify_prefixes": ["tests/"]
+    },
+    "fake_script": [
+      {
+        "gate": {
+          "intent_id": "fix_bug",
+          "confidence": "high"
+        }
+      },
+      {
+        "patch": {
+          "path": "sum_first.py",
+          "old_text": "for i in range(1, n):",
+          "new_text": "for i in range(1, n - 1):"
+        }
+      },
+      {
+        "patch": {
+          "path": "sum_first.py",
+          "old_text": "for i in range(1, n - 1):",
+          "new_text": "for i in range(1, n + 1):"
+        }
+      }
+    ]
+  },
+  {
+    "id": "bench_decoy_calc_backup",
+    "tier": "medium",
+    "dimension": "decoy",
+    "grading": "tests_only",
+    "lock_tests": true,
+    "description": "calc.py 与 calc_backup.py 内容相似，只应修前者",
+    "message": "Traceback (most recent call last):\n  File \"calc.py\", line 2, in add\n    return a + c\nNameError: name 'c' is not defined",
+    "setup_files": {
+      "calc.py": "def add(a, b):\n    return a + c\n",
+      "calc_backup.py": "def add(a, b):\n    return a + c\n",
+      "tests/test_calc.py": "from calc import add\n\ndef test_add():\n    assert add(2, 3) == 5\n"
+    },
+    "verify": "pytest",
+    "harness_intent": "fix_bug",
+    "architecture": {
+      "intent": "fix_bug",
+      "gate": {
+        "route": "harness_pipeline",
+        "confidence": "high",
+        "intent_id": "fix_bug"
+      },
+      "pipeline_must_succeed": true,
+      "locate": {
+        "must_include_files": ["calc.py"]
+      },
+      "must_modify": ["calc.py"],
+      "must_not_modify": ["calc_backup.py"],
+      "must_not_modify_prefixes": ["tests/"]
+    },
+    "fake_script": [
+      {
+        "gate": {
+          "intent_id": "fix_bug",
+          "confidence": "high"
+        }
+      },
+      {
+        "patch": {
+          "path": "calc.py",
+          "old_text": "return a + c",
+          "new_text": "return a + b"
+        }
+      }
+    ]
+  },
+  {
+    "id": "bench_gate_explain_boundary",
+    "tier": "easy",
+    "dimension": "gate_boundary",
+    "grading": "tests_only",
+    "description": "解释代码问句不应触发 fix_bug 改文件",
+    "message": "请解释一下 calc.py 里的 add 函数是做什么的，不需要修改任何文件。",
+    "setup_files": {
+      "calc.py": "def add(a, b):\n    return a + b\n"
+    },
+    "verify": "none",
+    "harness_intent": "fix_bug",
+    "architecture": {
+      "gate": {
+        "intent_id": "explain",
+        "confidence": "high",
+        "route": "harness_pipeline"
+      },
+      "pipeline_must_succeed": true,
+      "must_modify": [],
+      "must_not_modify": ["calc.py"]
+    },
+    "fake_script": [
+      {
+        "gate": {
+          "intent_id": "explain",
+          "confidence": "high"
+        }
+      },
+      {
+        "final": "add 函数将两个参数相加并返回。"
+      }
+    ]
+  },
+  {
+    "id": "bench_no_rig_search",
+    "tier": "medium",
+    "dimension": "no_rig",
+    "grading": "exact",
+    "description": "无 RIG index，仅靠 traceback 路径 + search 定位",
+    "message": "Traceback (most recent call last):\n  File \"helper.py\", line 3, in mul\n    return a * c\nNameError: name 'c' is not defined",
+    "setup_files": {
+      "helper.py": "def mul(a, b):\n    return a * c\n"
+    },
+    "expect_files": {
+      "helper.py": "def mul(a, b):\n    return a * b\n"
+    },
+    "verify": "py_compile",
+    "harness_intent": "fix_bug",
+    "architecture": {
+      "intent": "fix_bug",
+      "gate": {
+        "route": "harness_pipeline",
+        "confidence": "high",
+        "intent_id": "fix_bug"
+      },
+      "pipeline_must_succeed": true,
+      "locate": {
+        "must_include_files": ["helper.py"],
+        "min_snippets_with_source_lines": 1
+      },
+      "must_modify": ["helper.py"]
+    },
+    "fake_script": [
+      {
+        "gate": {
+          "intent_id": "fix_bug",
+          "confidence": "high"
+        }
+      },
+      {
+        "patch": {
+          "path": "helper.py",
+          "old_text": "return a * c",
+          "new_text": "return a * b"
+        }
+      }
+    ]
+  },
+  {
+    "id": "import_chain_rate",
+    "tier": "medium",
+    "dimension": "multi_file",
+    "grading": "tests_only",
+    "lock_tests": true,
+    "description": "bug 在 rates.py，pytest 失败表现于 app.compute",
+    "message": "pytest 失败：tests/test_compute.py::test_compute — assert compute() == 20，实际 2000。百分比费率计算有误。",
+    "setup_files": {
+      "rates.py": "def apply_rate(base, rate):\n    return base * rate\n",
+      "app.py": "from rates import apply_rate\n\ndef compute():\n    return apply_rate(200, 10)\n",
+      "tests/test_compute.py": "from app import compute\n\ndef test_compute():\n    assert compute() == 20\n"
+    },
+    "expect_files": {
+      "rates.py": "def apply_rate(base, rate):\n    return base * rate / 100\n"
+    },
+    "verify": "pytest",
+    "harness_intent": "fix_bug",
+    "architecture": {
+      "intent": "fix_bug",
+      "gate": {
+        "route": "harness_pipeline",
+        "confidence": "high",
+        "intent_id": "fix_bug"
+      },
+      "pipeline_must_succeed": true,
+      "no_open_fallback": true,
+      "locate": {
+        "must_include_files": ["rates.py"],
+        "min_snippets_with_source_lines": 1
+      },
+      "verify": {
+        "method": "pytest"
+      },
+      "generate_max_attempts": 1,
+      "must_modify": ["rates.py"],
+      "must_not_modify": ["app.py"],
+      "must_not_modify_prefixes": ["tests/"]
+    },
+    "fake_script": [
+      {
+        "gate": {
+          "intent_id": "fix_bug",
+          "confidence": "high"
+        }
+      },
+      {
+        "patch": {
+          "path": "rates.py",
+          "old_text": "return base * rate",
+          "new_text": "return base * rate / 100"
+        }
+      }
+    ]
+  },
+  {
+    "id": "logic_median_even",
+    "tier": "medium",
+    "grading": "tests_only",
+    "lock_tests": true,
+    "description": "median 偶数长度取错中位，py_compile 通过、pytest 失败",
+    "message": "pytest 失败：tests/test_stats.py::test_median_even — assert median([1,2,3,4]) == 2.5，实际 3。偶数长度列表的中位数计算有误。",
+    "setup_files": {
+      "stats.py": "def median(nums):\n    ordered = sorted(nums)\n    mid = len(ordered) // 2\n    return ordered[mid]\n",
+      "tests/test_stats.py": "from stats import median\n\ndef test_median_odd():\n    assert median([1, 3, 5]) == 3\n\ndef test_median_even():\n    assert median([1, 2, 3, 4]) == 2.5\n"
+    },
+    "expect_files": {
+      "stats.py": "def median(nums):\n    ordered = sorted(nums)\n    n = len(ordered)\n    if n % 2 == 1:\n        return ordered[n // 2]\n    lo, hi = n // 2 - 1, n // 2\n    return (ordered[lo] + ordered[hi]) / 2\n"
+    },
+    "verify": "pytest",
     "harness_intent": "fix_bug"
   }
 ]

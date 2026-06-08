@@ -24,3 +24,9 @@ dev = [
 [tool.setuptools.packages.find]
 where = ["."]
 include = ["mini_coding_agent*"]
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: 需要本机 Ollama 的 eval 集成测",
+]
+addopts = "-m 'not integration'"

@@ -12,10 +12,13 @@
 4. [`phase3.md`](./phase3.md) — 任务规划 + coding 链路深度 ✅
 5. [`phase4.md`](./phase4.md) — Skill 加载 ✅
 6. [`phase5-graph.md`](./phase5-graph.md) — Graph 编排（DAG + Gate + eval 黄金闭环）✅
-7. [`02-codebase-reference.md`](./02-codebase-reference.md) — 代码架构速查
-8. [`03-collaboration-model.md`](./03-collaboration-model.md) — 主/子 Agent 分工
-9. [`04-user-facing-locale.md`](./04-user-facing-locale.md) — 用户可见文案中文规范（铁律 §8）
-10. [`refactor-agent.md`](./refactor-agent.md) — Agent 模块重构（非 Phase）✅
+7. [`eval-repair-plan.md`](./eval-repair-plan.md) — **Eval 波次 C** 修复与加固 ✅
+8. [`eval-architecture-plan.md`](./eval-architecture-plan.md) — **Eval 波次 D** 架构体检（文档已就绪）
+9. [`eval/README.md`](../eval/README.md) — **Eval 波次 D 展开规格**（五层体系 · schema · 路线图）
+10. [`02-codebase-reference.md`](./02-codebase-reference.md) — 代码架构速查
+11. [`03-collaboration-model.md`](./03-collaboration-model.md) — 主/子 Agent 分工
+12. [`04-user-facing-locale.md`](./04-user-facing-locale.md) — 用户可见文案中文规范（铁律 §8）
+13. [`refactor-agent.md`](./refactor-agent.md) — Agent 模块重构（非 Phase）✅
 
 ---
 
@@ -42,9 +45,11 @@
 | Phase 2（含 Hook 用户价值） | ✅ |
 | Phase 3 | ✅ 已结项（make_plan + docs） |
 | Phase 4（Skills + 文档 + REVIEW） | ✅ P4-REVIEW 2026-06-02 |
-| benchmark | 暂缓（eval 任务集扩展见 phase5-graph §9） |
+| benchmark | 暂缓（外部 SWE-bench；内循环见 **Eval 波次 C**） |
 | Agent 重构（R1–R4 + REVIEW） | ✅ 2026-06-02 |
 | **Phase 5（Graph 编排）** | ✅ **结项**（P5-REVIEW + GL-REVIEW · live 2/5） |
+| **Eval 波次 C（EV-1–7）** | ✅ **结项** · [`eval-repair-plan.md`](./eval-repair-plan.md) |
+| **Eval 波次 D（架构体检）** | 📋 文档已就绪 · [`eval-architecture-plan.md`](./eval-architecture-plan.md) · [`eval/`](../eval/README.md) |
 | 目录结构 platform/modes/index | ✅ 2026-06-04 |
 | Hook / Skill / 五类其余意图 live | ⏸ 保留，暂不迭代 |
 | 测试 | 167 passed, 1 skipped |
