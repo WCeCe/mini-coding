@@ -1,7 +1,7 @@
 # Eval 文档索引（波次 D）
 
-> **状态**：📋 文档已就绪，代码实现按 [`10-implementation-roadmap.md`](./10-implementation-roadmap.md) 推进  
-> **前置**：Phase 5 + 黄金闭环 GL-1–5 ✅ · Eval 波次 C（EV-1–7）✅  
+> **状态**：✅ 规格与 repo 对齐（Batch 5–6）· L1 部分用例在 harness 测试中  
+> **前置**：Phase 5 + 黄金闭环 ✅ · Eval 波次 C/D ✅  
 > **struct 契约**：[`struct/eval-architecture-plan.md`](../struct/eval-architecture-plan.md)（波次 D 总纲）
 
 本目录是 **Eval 波次 D** 的完整实施文档，目标是把 eval 从「结果探测器」升级为「**架构探测器 + 能力探针**」双层体系。对照 [KWCode](https://github.com/zou0613/kwcode) 的分层思路，贴合本仓库 **Gate → slots → Locate → Generate → Verify → retry** 的 fix_bug DAG。
@@ -52,7 +52,11 @@
 | [`struct/eval-architecture-plan.md`](../struct/eval-architecture-plan.md) | 波次 D struct 总纲；本目录是其**展开版** |
 | [`struct/phase5-graph.md`](../struct/phase5-graph.md) §7 | 黄金五步与 eval 工作流 |
 | [`eval/README.md`](../../eval/README.md) | 操作手册（命令、环境）；本目录是**设计规格** |
+| [`eval/runs/README.md`](../../eval/runs/README.md) | Live 跑分产物归档与 Phase 7 结果表 |
 | [`eval/baselines/README.md`](../../eval/baselines/README.md) | 基线命名与对比用法 |
+| [`eval/L4-ONLY-DECISION.md`](../../eval/L4-ONLY-DECISION.md) | L2 契约 7 条 + L4-only 12 条（Batch 5） |
+| [`struct/phase7.md`](../struct/phase7.md) | Phase 7 Generate 迭代总纲 |
+| [`struct/phase7.3-outline.md`](../struct/phase7.3-outline.md) | 7.3 大纲 |
 
 ---
 
@@ -66,4 +70,4 @@
 
 ---
 
-*docs/eval · 波次 D 文档 · 2026-06-05*
+*docs/eval · Batch 5–6 对齐 · 2026-06-08*

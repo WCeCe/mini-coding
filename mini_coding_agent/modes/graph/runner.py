@@ -1,12 +1,14 @@
 """Graph Harness 编排入口（Phase 5.1 Gate + 5.5 五类 pipeline）。
 
 --harness off：完全 bypass，直接 open loop
---harness on：先 Gate，再走 pipeline；失败降级 agent.ask(message)
+--harness on：先 Gate，再走 pipeline；流水线失败直接返回错误（不降级 open）
 --gate-log：只打 Gate 日志，可以不跑 pipeline
 """
 import sys
 
 from mini_coding_agent.modes.graph.gate import classify_gate
+from mini_coding_agent.modes.graph.gate_prompt import build_gate_prompt
+from mini_coding_agent.modes.graph.harness_trace import clear_trace, record_stage
 from mini_coding_agent.modes.graph.pipeline import run_pipeline
 from mini_coding_agent.modes.graph.session_ctx import persist_last_gate
 from mini_coding_agent.modes.graph.types import PIPELINE_INTENTS_V1, GateResult
@@ -26,11 +28,22 @@ def _persist_last_gate(agent, result: GateResult) -> None:
 
 
 def handle_ask(agent, message: str, *, harness_enabled: bool = False, gate_log: bool = False) -> str:
-    """Harness 入口：Gate → 五类 pipeline 或 open 降级。"""
+    """Harness 入口：Gate → 五类 pipeline；低置信或 off 时仍走 open。"""
     if not harness_enabled and not gate_log:
         return agent.ask(message)
 
+    clear_trace(agent)
+    gate_prompt = build_gate_prompt(message)
     result = classify_gate(agent.model_client, message)
+    record_stage(
+        agent,
+        "gate",
+        input={"user_message": message, "prompt": gate_prompt},
+        output={
+            **result.to_session_dict(),
+            "raw": result.raw,
+        },
+    )
     _persist_last_gate(agent, result)
 
     if gate_log:
@@ -46,11 +59,8 @@ def handle_ask(agent, message: str, *, harness_enabled: bool = False, gate_log: 
             )
             if pipeline_result.ok:
                 return pipeline_result.final_text
-            print(
-                f"[harness] 流水线失败：{pipeline_result.reason}，降级 open",
-                file=sys.stderr,
-                flush=True,
-            )
-            return agent.ask(message)
+            reason = pipeline_result.reason or "未知原因"
+            print(f"[harness] 流水线失败：{reason}", file=sys.stderr, flush=True)
+            return f"流水线失败：{reason}"
 
     return agent.ask(message)

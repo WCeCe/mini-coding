@@ -3,7 +3,7 @@
 from dataclasses import dataclass, field
 from typing import Literal, Optional
 
-# 封闭五类意图；与 struct/phase5-graph-harness.md §5.1 一致
+# 封闭五类意图；与 struct/phase5-graph.md §5.1 一致
 INTENT_IDS = frozenset(
     {
         "generate_code",
@@ -119,6 +119,7 @@ class HarnessContext:
     last_verify_error: str = ""
     test_baseline: dict[str, str] = field(default_factory=dict)
     locate_min_snippets_with_source_lines: int = 0
+    last_generate_checkpoint: dict | None = None
 
 
 @dataclass

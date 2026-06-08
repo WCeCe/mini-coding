@@ -5,7 +5,8 @@ from mini_coding_agent.modes.graph.nodes.locate import run_locate
 from mini_coding_agent.modes.graph.snippet import has_source_lines
 from mini_coding_agent.modes.graph.planner import plan
 from mini_coding_agent.modes.graph.types import HarnessContext
-from mini_coding_agent.index import RigQuery, build_rig, default_db_path, rig_db_exists
+from mini_coding_agent.index import RigQuery, build_rig, default_db_path, ensure_rig, rig_db_exists
+from mini_coding_agent.modes.graph.pipeline import run_pipeline
 from mini_coding_agent.platform.wait_display import set_wait_display_enabled
 
 MINI_REPO = """
@@ -143,3 +144,35 @@ def test_cli_rig_build(tmp_path, capsys):
     captured = capsys.readouterr()
     assert "RIG 构建完成" in captured.err
     assert rig_db_exists(tmp_path)
+
+
+def test_ensure_rig_builds_when_missing(tmp_path):
+    _write_mini_repo(tmp_path)
+    assert not rig_db_exists(tmp_path)
+    stats = ensure_rig(tmp_path)
+    assert stats["built"] is True
+    assert rig_db_exists(tmp_path)
+    again = ensure_rig(tmp_path)
+    assert again["built"] is False
+
+
+def test_run_pipeline_ensures_rig(tmp_path):
+    (tmp_path / "calc.py").write_text("def add(a, b):\n    return a + c\n", encoding="utf-8")
+    workspace = WorkspaceContext.build(tmp_path)
+    store = SessionStore(tmp_path / ".mini-coding-agent" / "sessions")
+    agent = MiniAgent(
+        model_client=FakeModelClient(
+            [
+                '<tool>{"name":"patch_file","args":{"path":"calc.py",'
+                '"new_text":"def add(a, b):\\n    return a + b\\n"}}</tool>',
+            ]
+        ),
+        workspace=workspace,
+        session_store=store,
+        approval_policy="auto",
+        enable_trace_hook=False,
+    )
+    assert not rig_db_exists(tmp_path)
+    result = run_pipeline(agent, "fix_bug", 'File "calc.py", line 2')
+    assert rig_db_exists(tmp_path)
+    assert result.ok

@@ -14,12 +14,16 @@ _MESSAGE_PATH = re.compile(
     re.IGNORECASE,
 )
 # 常见异常中的符号名
+_SYMBOL_NOISE = frozenset({"Traceback", "File", "line"})
+
 _SYMBOL_PATTERNS = (
     re.compile(r"NameError: name '([^']+)'"),
     re.compile(r"AttributeError: .* '([^']+)'"),
     re.compile(r"ImportError: .* '([^']+)'"),
     re.compile(r"ModuleNotFoundError: No module named '([^']+)'"),
     re.compile(r"in (\w+)\s*$", re.MULTILINE),
+    re.compile(r"`([A-Za-z_]\w*)`"),
+    re.compile(r"\b([A-Za-z_]\w*)\s*\([^)]*\)"),
 )
 
 
@@ -71,7 +75,7 @@ def extract_symbols_hint(user_message: str) -> list[str]:
     for pattern in _SYMBOL_PATTERNS:
         for match in pattern.finditer(user_message):
             symbol = match.group(1).strip()
-            if symbol and not symbol.startswith("<"):
+            if symbol and not symbol.startswith("<") and symbol not in _SYMBOL_NOISE:
                 _append_unique(result, seen, symbol)
     return result
 

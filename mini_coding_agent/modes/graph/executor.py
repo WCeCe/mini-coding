@@ -1,5 +1,6 @@
 """DAG 执行引擎（Phase 5.5：通用模板驱动 + verify→generate retry）。"""
 
+import json
 import sys
 
 from pathlib import Path
@@ -7,8 +8,9 @@ from pathlib import Path
 from mini_coding_agent.modes.graph.error_format import format_error_for_model
 from mini_coding_agent.modes.graph.nodes import NODE_RUNNERS
 from mini_coding_agent.modes.graph.nodes.verify import _modified_python_paths
+from mini_coding_agent.modes.graph.harness_trace import record_node_stage
 from mini_coding_agent.modes.graph.session_ctx import observe_post_node, persist_pipeline_session
-from mini_coding_agent.modes.graph.verify_rules import collect_tests_snapshot
+from mini_coding_agent.modes.graph.verify_rules import collect_tests_snapshot, restore_workspace_for_retry
 from mini_coding_agent.modes.graph.types import (
     DagInstance,
     DagNode,
@@ -50,11 +52,31 @@ def execute_dag(agent, dag: DagInstance, user_message: str) -> PipelineResult:
         result = runner(ctx)
         ctx.node_outputs[node.id] = result
         _log_node(dag, step, len(order), node, result)
+        record_node_stage(agent, node.type, ctx, result)
         observe_post_node(agent, dag, node, result)
+
+        if node.type == "generate" and result.ok:
+            ctx.last_generate_checkpoint = _load_generate_checkpoint(agent)
+
+        if node.type == "generate" and not result.ok and result.data.get("policy_block"):
+            ctx.last_verify_error = result.message
+            if verify_policy and verify_retries < verify_policy.max:
+                verify_retries += 1
+                retry_index = _node_index(order, node.id)
+                if retry_index is None:
+                    return _finish(agent, ctx, PipelineResult(ok=False, reason=result.message))
+                index = retry_index
+                continue
+            return _finish(agent, ctx, PipelineResult(ok=False, reason=result.message))
 
         if node.id == "verify" and not result.ok:
             ctx.last_verify_error = format_error_for_model(result.message)
             if verify_policy and verify_retries < verify_policy.max:
+                restore_workspace_for_retry(
+                    Path(agent.root),
+                    test_baseline=ctx.test_baseline,
+                    checkpoint=ctx.last_generate_checkpoint,
+                )
                 verify_retries += 1
                 retry_index = _node_index(order, verify_policy.on_fail)
                 if retry_index is None:
@@ -119,6 +141,18 @@ def _node_index(order: list[DagNode], node_id: str) -> int | None:
         if node.id == node_id:
             return index
     return None
+
+
+def _load_generate_checkpoint(agent) -> dict | None:
+    meta = getattr(agent, "_last_tool_meta", None) or {}
+    checkpoint_id = meta.get("checkpoint_id")
+    session_id = agent.session.get("id")
+    if not checkpoint_id or not session_id:
+        return None
+    path = agent.checkpoint_store.root / session_id / f"{checkpoint_id}.json"
+    if not path.is_file():
+        return None
+    return json.loads(path.read_text(encoding="utf-8"))
 
 
 def _log_node(dag: DagInstance, step: int, total: int, node: DagNode, result: NodeResult) -> None:

@@ -24,10 +24,10 @@ def _gate_json(intent_id="fix_bug", confidence="high"):
     return json.dumps({"intent_id": intent_id, "confidence": confidence})
 
 
-def _patch_tool(old, new, path="calc.py"):
+def _patch_new_text(new, path="calc.py"):
     return (
         '<tool>{"name":"patch_file","args":'
-        f'{{"path":"{path}","old_text":{json.dumps(old)},"new_text":{json.dumps(new)}}}'
+        f'{{"path":"{path}","new_text":{json.dumps(new)}}}'
         "}</tool>"
     )
 
@@ -59,7 +59,7 @@ def test_consecutive_asks_read_last_gate_from_session(tmp_path):
         tmp_path,
         [
             _gate_json("fix_bug", "high"),
-            _patch_tool("return a + c", "return a + b"),
+            _patch_new_text("def add(a, b):\n    return a + b\n"),
             _gate_json("explain", "high"),
             "<final>第二次说明。</final>",
         ],
@@ -82,7 +82,7 @@ def test_fix_bug_pipeline_sets_last_files_touched(tmp_path):
         tmp_path,
         [
             _gate_json("fix_bug", "high"),
-            _patch_tool("return a + c", "return a + b"),
+            _patch_new_text("def add(a, b):\n    return a + b\n"),
         ],
     )
     handle_ask(agent, TRACEBACK.strip(), harness_enabled=True)
@@ -98,7 +98,7 @@ def test_fix_bug_pipeline_sets_last_verify(tmp_path):
         tmp_path,
         [
             _gate_json("fix_bug", "high"),
-            _patch_tool("return a + c", "return a + b"),
+            _patch_new_text("def add(a, b):\n    return a + b\n"),
         ],
     )
     handle_ask(agent, TRACEBACK.strip(), harness_enabled=True)
@@ -148,7 +148,7 @@ def test_observe_post_node_records_harness_last_node(tmp_path):
         tmp_path,
         [
             _gate_json("fix_bug", "high"),
-            _patch_tool("return a + c", "return a + b"),
+            _patch_new_text("def add(a, b):\n    return a + b\n"),
         ],
     )
     handle_ask(agent, TRACEBACK.strip(), harness_enabled=True)

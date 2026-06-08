@@ -23,12 +23,35 @@ def _gate_json(intent_id="fix_bug", confidence="high"):
     return json.dumps({"intent_id": intent_id, "confidence": confidence})
 
 
-def _patch_tool(old, new, path):
+def _patch_new_text(new, path):
     return (
         '<tool>{"name":"patch_file","args":'
-        f'{{"path":"{path}","old_text":{json.dumps(old)},"new_text":{json.dumps(new)}}}'
+        f'{{"path":"{path}","new_text":{json.dumps(new)}}}'
         "}</tool>"
     )
+
+
+_SUM_BUGGY = (
+    "def sum_first(n):\n"
+    "    s = 0\n"
+    "    for i in range(1, n):\n"
+    "        s += i\n"
+    "    return s\n"
+)
+_SUM_FIXED = (
+    "def sum_first(n):\n"
+    "    s = 0\n"
+    "    for i in range(1, n + 1):\n"
+    "        s += i\n"
+    "    return s\n"
+)
+_SUM_WRONG = (
+    "def sum_first(n):\n"
+    "    s = 0\n"
+    "    for i in range(1, n+2):\n"
+    "        s += i\n"
+    "    return s\n"
+)
 
 
 def _build_agent(tmp_path, outputs):
@@ -150,7 +173,7 @@ def test_harness_e2e_wrong_fix_verify_fails(tmp_path):
         tmp_path,
         [
             _gate_json(),
-            _patch_tool("for i in range(1, n):", "for i in range(1, n+2):", "sum_first.py"),
+            _patch_new_text(_SUM_WRONG, "sum_first.py"),
         ],
     )
     dag = plan("fix_bug", user_message="pytest fail", workspace_root=tmp_path)
@@ -201,3 +224,58 @@ def test_off_by_one_sum_grading_tests_only(tmp_path):
     _setup_sum_task(tmp_path, buggy=False)
     err, _ = check_task_grading(tmp_path, task)
     assert err is None
+
+
+def test_restore_tests_from_baseline(tmp_path):
+    from mini_coding_agent.modes.graph.verify_rules import restore_tests_from_baseline
+
+    _setup_sum_task(tmp_path)
+    baseline = collect_tests_snapshot(tmp_path)
+    test_file = tmp_path / "tests/test_sum.py"
+    test_file.write_text("tampered\n", encoding="utf-8")
+    (tmp_path / "tests" / "extra.py").write_text("new\n", encoding="utf-8")
+
+    restore_tests_from_baseline(tmp_path, baseline)
+
+    assert test_file.read_text(encoding="utf-8") == baseline["tests/test_sum.py"]
+    assert not (tmp_path / "tests" / "extra.py").exists()
+
+
+def test_verify_retry_restores_tests_after_wrong_test_patch(tmp_path):
+    """第一次误改 tests/，verify fail 后 retry 应恢复 tests 再改源码。"""
+    _setup_sum_task(tmp_path)
+    original_test = (tmp_path / "tests/test_sum.py").read_text(encoding="utf-8")
+    agent = _build_agent(
+        tmp_path,
+        [
+            _patch_new_text("assert sum_first(3) == 999", "tests/test_sum.py"),
+            _patch_new_text(_SUM_FIXED, "sum_first.py"),
+        ],
+    )
+    dag = plan("fix_bug", user_message="pytest fail", workspace_root=tmp_path)
+    result = execute_dag(agent, dag, "pytest fail")
+
+    assert result.ok
+    assert (tmp_path / "tests/test_sum.py").read_text(encoding="utf-8") == original_test
+    assert "range(1, n + 1)" in (tmp_path / "sum_first.py").read_text(encoding="utf-8")
+    assert len(agent.model_client.prompts) == 2
+
+
+def test_generate_policy_block_retries_without_writing_tests(tmp_path):
+    """写前拦截 tests 后 retry，第二次改源码应成功且 tests 未变。"""
+    _setup_sum_task(tmp_path)
+    original_test = (tmp_path / "tests/test_sum.py").read_text(encoding="utf-8")
+    agent = _build_agent(
+        tmp_path,
+        [
+            _patch_new_text("assert sum_first(3) == 999", "tests/test_sum.py"),
+            _patch_new_text(_SUM_FIXED, "sum_first.py"),
+        ],
+    )
+    dag = plan("fix_bug", user_message="pytest fail", workspace_root=tmp_path)
+    result = execute_dag(agent, dag, "pytest fail")
+
+    assert result.ok
+    assert (tmp_path / "tests/test_sum.py").read_text(encoding="utf-8") == original_test
+    assert "禁止修改测试文件" in agent.model_client.prompts[1]
+    assert "range(1, n + 1)" in (tmp_path / "sum_first.py").read_text(encoding="utf-8")

@@ -59,6 +59,7 @@ def _verify_ctx(tmp_path, path="sum_first.py") -> HarnessContext:
 
 def _fix_bug_ctx(tmp_path, agent, user_message="SyntaxError in calc.py") -> HarnessContext:
     dag = plan("fix_bug", user_message=user_message, workspace_root=tmp_path)
+    calc_text = (tmp_path / "calc.py").read_text(encoding="utf-8")
     return HarnessContext(
         agent=agent,
         dag=dag,
@@ -67,7 +68,10 @@ def _fix_bug_ctx(tmp_path, agent, user_message="SyntaxError in calc.py") -> Harn
             "locate": NodeResult(
                 ok=True,
                 message="ok",
-                data={"snippets": [(tmp_path / "calc.py").read_text(encoding="utf-8")]},
+                data={
+                    "files": ["calc.py"],
+                    "snippets": [f"# file: calc.py L1-L10\n   1: {line}" for line in calc_text.splitlines()],
+                },
             )
         },
     )
@@ -107,9 +111,8 @@ class TestBug_VerifyPytestNotPycompile:
             [
                 json.dumps({"intent_id": "fix_bug", "confidence": "high"}),
                 (
-                    '<tool>{"name":"patch_file","args":'
-                    '{"path":"sum_first.py","old_text":"for i in range(1, n):",'
-                    '"new_text":"for i in range(1, n+2):"}}</tool>'
+                    '<tool>{"name":"patch_file","args":{"path":"sum_first.py","new_text":'
+                    '"def sum_first(n):\\n    s = 0\\n    for i in range(1, n+2):\\n        s += i\\n    return s\\n"}}</tool>'
                 ),
             ],
         )
@@ -122,21 +125,23 @@ class TestBug_VerifyPytestNotPycompile:
 
 
 class TestBug_PatchOldTextNormalize:
-    """QA_LOG 轮次 0 · syntaxerror_paren generate_patch_match（GL-5）：old_text 缩进对齐。"""
+    """QA_LOG 轮次 0 · syntaxerror_paren generate_patch_match（GL-5）：系统注入 old_text。"""
 
-    def test_generate_fix_bug_aligns_patch_old_text_without_indent(self, tmp_path):
+    def test_generate_fix_bug_guided_injects_old_text(self, tmp_path):
         calc = "def add(a, b):\n    return (a + b\n"
+        fixed = "def add(a, b):\n    return (a + b)\n"
         (tmp_path / "calc.py").write_text(calc, encoding="utf-8")
         agent = _build_agent(
             tmp_path,
             [
                 '<tool>{"name":"patch_file","args":{"path":"calc.py",'
-                '"old_text":"return (a + b","new_text":"return (a + b)"}}</tool>',
+                f'"new_text":{json.dumps(fixed)}}}</tool>',
             ],
         )
         result = run_generate(_fix_bug_ctx(tmp_path, agent))
         assert result.ok
-        assert (tmp_path / "calc.py").read_text(encoding="utf-8") == "def add(a, b):\n    return (a + b)\n"
+        assert result.data["args"]["old_text"] == calc
+        assert (tmp_path / "calc.py").read_text(encoding="utf-8") == fixed
 
 
 class TestBug_ProtocolNestedQuotes:

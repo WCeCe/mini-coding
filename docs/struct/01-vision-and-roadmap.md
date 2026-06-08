@@ -30,13 +30,13 @@
 |--------|------|------|
 | P0 | 无 diff 预览、无 checkpoint/回滚 | ~~Phase 1~~ ✅ |
 | P1 | 无可观测性（trace、耗时） | ~~Phase 2~~ ✅ 轻量 |
-| P1 | 无 benchmark / 回归任务集 | **暂缓**（coding 链路设计稳后再做） |
+| P1 | 无 benchmark / 回归任务集 | ~~Phase 5 + Eval 五层~~ ✅（L1–L5 + live 基线） |
 | P2 | `run_shell` 全权限、无阻断 | 部分（Phase 2 仅审计告警） |
 | P2 | 单文件、无扩展点 | ~~Phase 2~~ ✅ 已拆包 + Hook |
 | P3 | 仅 Ollama、非流式 | 按需 |
 | P0 | LLM 每步自选 tool（无图式编排） | ~~Phase 5~~ ✅ Graph 编排 |
 
-**结论**：Phase 1–5 已补齐治理、可观测、规划、Skill、Graph 编排与 eval 基线。后续见 [`phase5-graph.md`](./phase5-graph.md) §9（5.8+）。
+**结论**：Phase 1–5 已补齐治理、可观测、规划、Skill、Graph 编排与 eval 五层体系。**Phase 7** 提升 fix_bug Generate 质量（7.1/7.2 ✅）。架构文档见 [`ARCHITECTURE.md`](./ARCHITECTURE.md)；后续优化见 [`phase7.md`](./phase7.md) · [`phase7.3-outline.md`](./phase7.3-outline.md)。
 
 ---
 
@@ -61,6 +61,22 @@ P4-SKILLS + P4-DOCS + P4-REVIEW 已结项。详见 [`phase4.md`](./phase4.md)。
 ### Phase 5 — Graph 编排（确定性 DAG）✅
 
 Gate + 模板 DAG + Executor + index + eval 黄金闭环。详见 [`phase5-graph.md`](./phase5-graph.md)。
+
+### Phase 7 — fix_bug Generate 与 eval 可观测 🔄
+
+在 Graph 骨架不变前提下，提升 Generate patch 质量与 live 可诊断性。
+
+| 子阶段 | 状态 | 文档 |
+|--------|------|------|
+| 7.1 写前策略 + retry 回滚 | ✅ | [`phase7.1-generate-fix-bug.md`](./phase7.1-generate-fix-bug.md) |
+| 7.2 引导 patch + stage_trace | ✅ | [`phase7.2-guided-patch.md`](./phase7.2-guided-patch.md) |
+| 7.3 protocol + no_file_hint | 📋 | [`phase7.3-outline.md`](./phase7.3-outline.md) |
+
+**Live 基线（qwen2.5-coder:7b，7.2 后）**：全量 **8/19** · Generate 专项 **5/8** — [`eval/baselines/README.md`](../../eval/baselines/README.md)
+
+### 架构文档整理（Batch 0–6）✅
+
+[`project-architecture-plan.md`](./project-architecture-plan.md) · [`ARCHITECTURE.md`](./ARCHITECTURE.md) · [`graph-subsystem.md`](./graph-subsystem.md) · [`platform-subsystem.md`](./platform-subsystem.md)
 
 ---
 
@@ -89,4 +105,4 @@ Gate + 模板 DAG + Executor + index + eval 黄金闭环。详见 [`phase5-graph
 
 ---
 
-*struct/01 · 主 Agent 维护*
+*struct/01 · Batch 6 同步 Phase 7 · 2026-06-08*

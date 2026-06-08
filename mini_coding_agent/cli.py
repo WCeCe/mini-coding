@@ -187,7 +187,7 @@ def build_arg_parser():
         "--harness",
         choices=("off", "on"),
         default="off",
-        help="Graph Harness：on 时先 Gate 分类（5.1 流水线未就绪时仍降级 open）。",
+        help="Graph Harness：on 时先 Gate 分类；流水线失败直接返回错误（不降级 open）。",
     )
     parser.add_argument(
         "--gate-log",

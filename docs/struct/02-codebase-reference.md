@@ -1,6 +1,7 @@
 # 代码架构速查
 
-> 改动 Agent 行为前先定位自己动的是哪一层。R1–R4 重构后实现分布在 `mini_coding_agent/` 包内多模块。
+> 改动 Agent 行为前先定位自己动的是哪一层。  
+> **系统总览**（端到端图、failure_type 映射）：[`ARCHITECTURE.md`](./ARCHITECTURE.md) · 本文偏**模块/符号速查**。
 
 ## 1. 仓库布局
 
@@ -25,11 +26,17 @@ mini-coding-agent-main/
 │   │   ├── open/                 # Open Loop：自由工具循环
 │   │   │   ├── agent.py          # MiniAgent · ask()
 │   │   │   └── prompt.py         # build_prefix、build_prompt、history
-│   │   └── graph/                # Graph 编排：Gate + DAG（原 harness/）
-│   │       ├── runner.py · gate.py · planner.py · executor.py · pipeline.py
+│   │   └── graph/                # Graph 编排：Gate + DAG
+│   │       ├── runner.py         # handle_ask 入口
+│   │       ├── gate.py · gate_prompt.py
+│   │       ├── slots.py          # 槽位规则（无 LLM）
+│   │       ├── planner.py · executor.py · pipeline.py
+│   │       ├── harness_trace.py  # stage_trace（eval 可观测）
+│   │       ├── verify_rules.py   # lock_tests、pytest/py_compile
+│   │       ├── session_ctx.py    # harness 会话字段
 │   │       ├── nodes/            # locate / generate / verify / …
 │   │       └── templates/        # 五类意图 JSON
-│   └── index/                    # 离线索引（原 rig/）：build · query · store
+│   └── index/                    # 离线索引：build · ensure_rig · query · store
 ├── eval/                         # 黄金闭环 eval（tasks.json + run_eval.py）
 ├── pyproject.toml
 ├── tests/
@@ -56,8 +63,8 @@ mini-coding-agent-main/
 | 4 | Context Reduction | `modes/open/prompt.history_text` · `platform/util.clip` | 截断、去重、压缩 |
 | 5 | Transcripts & Memory | `modes/open/agent.py` · `SessionStore`、`ask` | 持久化、Open Loop 主循环 |
 | 6 | Delegation | `platform/tools/implementations.tool_delegate` | 只读子 Agent |
-| 7 | Graph 编排 | `modes/graph/*` · `handle_ask` · Gate + DAG | 确定性流水线（Phase 5） |
-| 8 | 离线索引 | `index/*` · `build_rig` · `RigQuery` | Locate 用代码图谱 |
+| 7 | Graph 编排 | `modes/graph/runner.handle_ask` · Gate · pipeline · executor | 确定性 DAG（Phase 5）；Phase 7 引导 patch |
+| 8 | 离线索引 | `index/build.ensure_rig` · `RigQuery` | pipeline 前自动建 `rig.db`；Locate 查询 |
 
 ---
 
@@ -107,6 +114,8 @@ while tool_steps < max_steps and attempts < max_attempts:
 2. XML：`<tool name="write_file" path="..."><content>...</content></tool>`
 3. 结束：`<final>...</final>`
 4. 畸形 → `retry`（`protocol.retry_notice`）
+
+**`patch_file`（Phase 7.2）**：解析器接受 `path` + `new_text`（`old_text` 可选）。Graph fix_bug 引导模式下 **系统**从磁盘注入 `old_text`，LLM 通常只产 `new_text`。Generate 另有 ` ``` ` 代码块兜底（见 `nodes/generate.py`）。
 
 ---
 
@@ -201,4 +210,53 @@ load_skill / CLI --skills → memory.loaded_skills → prompt.memory_text()
 
 ---
 
-*struct/02 · R1–R4 重构后更新（REFACTOR-REVIEW）*
+## 11. Graph Harness（`modes/graph/`）
+
+**入口**：`handle_ask(agent, message, harness_enabled=…, gate_log=…)`（`runner.py`）
+
+```
+harness off 且无 gate_log → agent.ask()（无 Gate）
+否则 → classify_gate (1× LLM) → record_stage("gate")
+  harness on 且 route=harness_pipeline 且 intent∈五类
+    → run_pipeline → ensure_rig → slots → execute_dag
+    → ok: final_text | fail: 「流水线失败：reason」（不降级 open）
+  其他 → agent.ask()
+```
+
+| 条件 | 行为 |
+|------|------|
+| `--harness off` 且无 `--gate-log` | 直接 Open |
+| Gate `confidence=low` 或非法 intent | Open |
+| Pipeline 节点失败 / verify retry 耗尽 | **错误返回**（Phase 7.2+） |
+
+| 模块 | 符号 | 职责 |
+|------|------|------|
+| `runner.py` | `handle_ask` | Gate 分流、pipeline 调用 |
+| `gate.py` | `classify_gate` | 五类意图 + confidence |
+| `slots.py` | `fill_slots` | traceback/路径规则填槽（无 LLM） |
+| `planner.py` | `load_template` | `templates/*.json` → DAG |
+| `pipeline.py` | `run_pipeline` | `ensure_rig` + plan + execute |
+| `executor.py` | `execute_dag` | 拓扑执行；verify fail → retry generate ≤2 |
+| `harness_trace.py` | `record_stage` | gate/rig/slots/locate/generate/verify I/O |
+| `verify_rules.py` | `lock_tests` · `run_verify_command` | eval 与 harness 共用 verify 规则 |
+| `session_ctx.py` | `persist_last_gate` | `last_gate` · `harness_node_outputs` · `harness_trace` |
+
+**fix_bug 模板**：`locate → generate → verify`（无 review）。详见 [`graph-subsystem.md`](./graph-subsystem.md) §5–6。
+
+---
+
+## 12. Phase 7 热点（Generate / RIG / 可观测）
+
+| 变更 | 模块 | 说明 |
+|------|------|------|
+| **ensure_rig** | `index/build.py` | pipeline 启动时若无 `rig.db` 则全量 build |
+| **引导 patch** | `nodes/generate.py` | fix_bug：系统读 `old_text`，LLM 只写 `new_text`；禁止 patch `tests/` |
+| **retry 回滚** | `executor.py` + `verify_rules.py` | verify 失败：restore checkpoint + tests 快照后再 generate |
+| **stage_trace** | `harness_trace.py` | 写入 `session.harness_trace`；eval 报告 `observability.stage_trace` |
+| **无 open 降级** | `runner.py` | pipeline 失败直接返回错误 |
+
+详见 [`phase7.md`](./phase7.md) · [`phase7.2-guided-patch.md`](./phase7.2-guided-patch.md)
+
+---
+
+*struct/02 · Batch 2 刷新 · 与 ARCHITECTURE / Phase 7.2 对齐 · 2026-06-08*

@@ -16,13 +16,61 @@ def _json_tool_body_candidates(body):
         yield trimmed
 
 
+def _decode_json_string_literal(value: str) -> str:
+    return bytes(value, "utf-8").decode("unicode_escape")
+
+
 def _extract_quoted_json_field(body, field):
     """从 tool JSON 正文中提取字符串字段（容忍值内含单引号 / f-string 花括号）。"""
     pattern = rf'"{re.escape(field)}"\s*:\s*"((?:[^"\\]|\\.)*)"'
     match = re.search(pattern, body)
     if not match:
         return None
-    return bytes(match.group(1), "utf-8").decode("unicode_escape")
+    return _decode_json_string_literal(match.group(1))
+
+
+def _extract_unclosed_json_string(body: str, field: str) -> str | None:
+    """字段值缺少闭合引号时，扫描至 ``}}`` 或 ``"</tool>`` 前（容忍 f-string 内 ``{name}``）。"""
+    marker = f'"{field}"'
+    key_at = body.find(marker)
+    if key_at == -1:
+        return None
+    colon = body.find(":", key_at + len(marker))
+    if colon == -1:
+        return None
+    open_quote = body.find('"', colon + 1)
+    if open_quote == -1:
+        return None
+    start = open_quote + 1
+    i = start
+    while i < len(body):
+        ch = body[i]
+        if ch == "\\" and i + 1 < len(body):
+            i += 2
+            continue
+        if ch == '"':
+            return _decode_json_string_literal(body[start:i])
+        if body.startswith("}}", i) or body.startswith("}}</tool>", i):
+            return _decode_json_string_literal(body[start:i])
+        i += 1
+    return None
+
+
+def _extract_json_string_field(body: str, field: str) -> str | None:
+    """提取 JSON 字符串字段；容忍 new_text 等缺少闭合引号（live syntaxerror_paren / nameerror_greet）。"""
+    value = _extract_quoted_json_field(body, field)
+    if value is not None:
+        return value
+    return _extract_unclosed_json_string(body, field)
+
+
+def _unwrap_markdown_fences(text: str) -> str:
+    """剥掉整段响应外层的 ``` / ```json 围栏（Phase 7.3）。"""
+    stripped = text.strip()
+    match = re.match(r"^```(?:json)?\s*([\s\S]*?)\s*```\s*$", stripped, re.I)
+    if match:
+        return match.group(1).strip()
+    return stripped
 
 
 def _parse_tool_json_relaxed(body):
@@ -44,14 +92,17 @@ def _parse_tool_json_relaxed(body):
         return None
     name = name_match.group(1).strip()
     if name == "patch_file":
-        path = _extract_quoted_json_field(text, "path")
-        old_text = _extract_quoted_json_field(text, "old_text")
-        new_text = _extract_quoted_json_field(text, "new_text")
-        if path and old_text is not None and new_text is not None:
-            return {"name": name, "args": {"path": path, "old_text": old_text, "new_text": new_text}}
+        path = _extract_json_string_field(text, "path")
+        old_text = _extract_json_string_field(text, "old_text")
+        new_text = _extract_json_string_field(text, "new_text")
+        if path and new_text is not None:
+            args = {"path": path, "new_text": new_text}
+            if old_text is not None:
+                args["old_text"] = old_text
+            return {"name": name, "args": args}
     if name == "write_file":
-        path = _extract_quoted_json_field(text, "path")
-        content = _extract_quoted_json_field(text, "content")
+        path = _extract_json_string_field(text, "path")
+        content = _extract_json_string_field(text, "content")
         if path and content is not None:
             return {"name": name, "args": {"path": path, "content": content}}
     return None
@@ -70,9 +121,17 @@ def _normalize_tool_payload(payload):
     return payload
 
 
+def _try_parse_bare_tool_json(raw: str):
+    """围栏内或纯文本中的 {"name":...} tool JSON（无 <tool> 包装）。"""
+    stripped = raw.strip()
+    if not stripped.startswith("{") or '"name"' not in stripped:
+        return None
+    return _normalize_tool_payload(_parse_tool_json_relaxed(stripped))
+
+
 # 解析模型返回的结果
 def parse(raw):
-    raw = str(raw)
+    raw = _unwrap_markdown_fences(str(raw))
     # tool首先存在，并且tool的位置比final靠前
     if "<tool>" in raw and ("<final>" not in raw or raw.find("<tool>") < raw.find("<final>")):
         body = extract(raw, "tool")
@@ -86,6 +145,9 @@ def parse(raw):
         if payload is not None:
             return "tool", payload
         return "retry", retry_notice()
+    bare = _try_parse_bare_tool_json(raw)
+    if bare is not None:
+        return "tool", bare
     if "<final>" in raw:
         final = extract(raw, "final").strip()
         if final:

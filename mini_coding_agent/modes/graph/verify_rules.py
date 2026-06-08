@@ -75,6 +75,49 @@ def check_generate_did_not_touch_tests(generate_path: str | None) -> str | None:
     return None
 
 
+def check_fix_bug_must_not_touch_tests(intent_id: str, path: str) -> str | None:
+    """fix_bug generate 写前策略：禁止 patch/write tests/（在 run_tool 之前调用）。"""
+    if intent_id != "fix_bug":
+        return None
+    if not path:
+        return None
+    if is_under_tests(path):
+        rel = normalize_rel_path(path)
+        return f"fix_bug 禁止修改测试文件：{rel}；请 patch 定位上下文中的源码文件"
+    return None
+
+
+def restore_tests_from_baseline(root: Path, baseline: dict[str, str]) -> None:
+    """将 tests/ 恢复为流水线启动时的快照（verify retry 前调用）。"""
+    if not baseline:
+        return
+    baseline_paths = set(baseline.keys())
+    for rel, content in baseline.items():
+        full = root / rel
+        full.parent.mkdir(parents=True, exist_ok=True)
+        full.write_text(content, encoding="utf-8")
+    tests_dir = root / "tests"
+    if not tests_dir.is_dir():
+        return
+    for path in sorted(tests_dir.rglob("*")):
+        if not path.is_file():
+            continue
+        rel = path.relative_to(root).as_posix()
+        if _is_ignored_test_artifact(rel):
+            continue
+        if rel not in baseline_paths:
+            path.unlink()
+
+
+def restore_workspace_for_retry(root: Path, *, test_baseline: dict[str, str], checkpoint: dict | None) -> None:
+    """verify 失败跳回 generate 前：回滚上次 patch + 恢复 tests 快照。"""
+    if checkpoint:
+        from mini_coding_agent.platform.governance import restore_checkpoint
+
+        restore_checkpoint(root, checkpoint)
+    restore_tests_from_baseline(root, test_baseline)
+
+
 def check_lock_tests_from_setup(root: Path, setup_files: dict) -> str | None:
     """eval 终判：setup_files 中 tests/ 路径内容须保持不变。"""
     for rel_path, expected in setup_files.items():

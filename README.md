@@ -17,7 +17,7 @@ It is a minimal local agent loop with:
 - **terminal tool trace**, shell audit alerts, and **YAML-configured built-in hooks** (Phase 2.1)
 - **task planning** with structured `make_plan` and optional `--plan-first` (Phase 3)
 - **Skills (Phase 4)** — reusable workflow packs from `.mini-coding-agent/skills/` with two-stage loading (`load_skill`, `--skills`)
-- **Graph Harness (Phase 5)** — optional template-driven pipeline: LLM Gate (5 intents), DAG execution, offline RIG, open-loop fallback (`--harness`, `--gate-log`, `rig build`)
+- **Graph Harness (Phase 5)** — optional template-driven pipeline: LLM Gate (5 intents), DAG execution, offline RIG (`--harness`, `--gate-log`, `rig build`); pipeline failure returns an error (no open fallback since Phase 7.2)
 - transcript and memory persistence
 - bounded delegation
 
@@ -31,6 +31,15 @@ The model backend is currently based on Ollama.
 
 **[The detailed tutorial: Components of a Coding Agent](https://magazine.sebastianraschka.com/p/components-of-a-coding-agent)**
 
+
+&nbsp;
+## Architecture documentation
+
+For a **system overview** (Graph vs Open, fix_bug flow, eval layers, failure_type → code):
+
+- **[`docs/struct/ARCHITECTURE.md`](docs/struct/ARCHITECTURE.md)** — start here
+- [`docs/struct/project-architecture-plan.md`](docs/struct/project-architecture-plan.md) — staged doc cleanup plan
+- [`docs/README.md`](docs/README.md) — full doc index (Chinese)
 
 &nbsp;
 ## Six Core Components
@@ -660,15 +669,15 @@ Output database:
 
 The **`locate`** node queries RIG first (symbols, file paths, 1-hop neighbors), then falls back to `search` / traceback hints if the DB is missing. No cloud services; stdlib `ast` + SQLite only.
 
-### Open fallback (when harness does not run the pipeline)
+### Open fallback vs pipeline errors
 
 | Condition | Behavior |
 |-----------|----------|
 | `--harness off` and no `--gate-log` | Direct `ask()` — no Gate LLM |
 | Gate `confidence=low` or invalid `intent_id` | `ask()` |
-| Pipeline node failure or verify retries exhausted | stderr reason, then `ask()` |
+| Pipeline node failure or verify retries exhausted | Return **`流水线失败：…`** — **no** open fallback (Phase 7.2+) |
 
-`ask()` remains the **supported** entry for exploratory work and when the harness is unsure.
+`ask()` remains the **supported** entry for exploratory work and when the harness is unsure (Gate low).
 
 ### Harness fields in session JSON
 
@@ -806,7 +815,7 @@ Important flags:
 - `--skills`
   comma-separated Skill names to preload into session memory at startup (e.g. `code-review,example-skill`); default: none
 - `--harness`
-  Graph Harness: `off` (default, normal `ask()` only) or `on` (Gate + template pipeline for high-confidence intents; failures fall back to `ask()`)
+  Graph Harness: `off` (default, normal `ask()` only) or `on` (Gate + template pipeline for high-confidence intents; Gate low → `ask()`, pipeline failure → error)
 - `--gate-log`
   print Gate intent classification to stderr each message; can be used with `--harness off` for observation only
 

@@ -9,8 +9,8 @@
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │ L1  组件诊断 pytest（CI 必绿，零 LLM）                               │
-│     tests/diagnostic/                                               │
-│     Gate 解析 · slots 提取 · locate snippet · protocol · verify     │
+│     tests/diagnostic/  ← 当前：test_slots_locate.py（SL/L 系列）      │
+│     分散：test_harness_gate · test_generate_robust · verify_align   │
 ├─────────────────────────────────────────────────────────────────────┤
 │ L2  管线契约 eval（CI 必绿，FakeModel + tasks.json）                 │
 │     tests/test_eval_contract.py                                     │
@@ -44,16 +44,30 @@
 
 **不跑完整 pipeline**，单独测每个模块的输入→输出契约。等价于 KWCode `kaiwu/tests/diagnostic/` 的缩小版。
 
-### 2.2 目录结构（目标）
+### 2.2 目录结构（**实际**，2026-06-08）
 
 ```
 tests/diagnostic/
 ├── __init__.py
-├── test_gate_parse.py          # Gate JSON 解析 + 路由规则
-├── test_slots_locate.py        # slots 提取 + locate snippet 质量（主文件）
-├── test_protocol_generate.py   # protocol 解析容错（可与 test_generate_robust 分工）
-├── test_verify_rules.py        # verify 决策顺序（可与 test_harness_verify_align 分工）
-└── test_error_format.py        # retry 错误摘要格式
+└── test_slots_locate.py     # SL-01–SL-24 子集 + L-01–L-07；D1/D2/D3 门槛
+```
+
+**规划尚未独立成文件的模块**（由现有 harness 测试覆盖，见 [`06-l1-diagnostic-spec.md`](./06-l1-diagnostic-spec.md) §10）：
+
+| 规划文件 | 实际覆盖 |
+|----------|----------|
+| `test_gate_parse.py` | `tests/test_harness_gate.py`（`parse_gate_response`） |
+| `test_protocol_generate.py` | `tests/test_generate_robust.py`（`protocol.parse`） |
+| `test_verify_rules.py` | `tests/test_harness_verify_align.py` |
+| `test_error_format.py` | `tests/test_harness_error_format.py` |
+
+### 2.2.1 目标结构（可选扩展）
+
+```
+tests/diagnostic/
+├── test_gate_parse.py          # 从 harness_gate 抽纯函数用例（可选）
+├── test_protocol_generate.py   # 从 test_generate_robust 抽 parse 用例（可选）
+└── …
 ```
 
 **与现有测试的分工**：
@@ -112,13 +126,24 @@ def test_pipeline_contract(task, tmp_path):
     assert outcome_err is None, outcome_err
 ```
 
-### 3.3 首批契约任务（P0-b）
+### 3.3 契约任务（7 条，Batch 5 冻结）
+
+| 类别 | 数量 | 说明 |
+|------|------|------|
+| L2/L3 契约 | **7** | 含 `architecture` + `fake_script` |
+| L4-only | **12** | 无契约字段；仅 live 探针 |
+
+完整划分：[`eval/L4-ONLY-DECISION.md`](../../eval/L4-ONLY-DECISION.md)
 
 | task_id | 覆盖架构点 |
 |---------|------------|
 | `nameerror_calc` | Gate + slots(traceback) + generate + py_compile verify |
 | `off_by_one_sum` | verify 必须 pytest + lock_tests |
-| `import_chain_rate` | locate 跨文件 + must_modify root cause |
+| `bench_retry_off_by_one` | B1 verify→generate retry |
+| `bench_decoy_calc_backup` | B2 decoy |
+| `bench_gate_explain_boundary` | B3 gate_boundary |
+| `bench_no_rig_search` | B4 no_rig |
+| `import_chain_rate` | B5 multi_file |
 
 完整 schema 见 [`03-task-schema.md`](./03-task-schema.md)，断言逻辑见 [`07-l2-contract-spec.md`](./07-l2-contract-spec.md)。
 
@@ -186,9 +211,9 @@ python eval/run_eval.py --task nameerror_calc
 # 严格管线模式（规划）
 python eval/run_eval.py --strict-pipeline
 
-# 基线
-python eval/run_eval.py --save-baseline eval/baselines/live-qwen2.5-coder-7b.json
-python eval/run_eval.py --compare eval/baselines/live-qwen2.5-coder-7b.json
+# 基线（Phase 7.2 后正式版）
+python eval/run_eval.py --save-baseline eval/baselines/live-qwen2.5-coder-7b-post72.json
+python eval/run_eval.py --compare eval/baselines/live-qwen2.5-coder-7b-post72.json
 ```
 
 ### 5.3 与 L1–L3 的关系
@@ -232,6 +257,18 @@ python eval/run_eval.py --compare eval/baselines/live-qwen2.5-coder-7b.json
 
 ## 7. CI 策略（推荐）
 
+### 7.0 五层命令速查
+
+| 层 | 命令 |
+|----|------|
+| L1 | `pytest tests/diagnostic/ -q` |
+| L2/L3 | `pytest tests/test_eval_contract.py -q` |
+| L4 | `python eval/run_eval.py`（需 Ollama） |
+| L5 | `pytest tests/regression/ -q` |
+| 框架 | `pytest tests/test_eval_runner.py -q` |
+
+详见 [`eval/README.md`](../../eval/README.md)。
+
 ### 7.1 必跑（每次 PR / push）
 
 ```bash
@@ -269,7 +306,7 @@ python eval/run_eval.py   # 需 Ollama，手动或 nightly workflow
 | **测什么** | 管线契约、架构维度 | 模型 + prompt 真实能力 |
 | **稳定性** | 确定性，CI 可绿 | 受模型/硬件影响 |
 | **数据源** | `tasks.json` → `fake_script` | `tasks.json` → `message` + setup |
-| **通过语义** | pipeline_ok AND outcome_ok | passed（默认 outcome 且非 fallback） |
+| **通过语义** | pipeline_ok AND outcome_ok | passed（默认 outcome_ok；7.2 后无 fallback_open） |
 | **失败归因** | 契约断言直接报字段名 | failure_type + observability |
 
 **禁止**：用 L2 全绿冒充 L4 能力；用 L4 低分否定 L2 架构正确性。
@@ -293,4 +330,4 @@ flowchart TD
 
 ---
 
-*02-five-layer-system.md · 波次 D · 2026-06-05*
+*02-five-layer-system.md · Batch 5 对齐实际布局 · 2026-06-08*

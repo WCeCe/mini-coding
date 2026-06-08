@@ -124,6 +124,11 @@ D2_CASES: list[dict] = [
         "expected_contains": ["add"],
     },
     {
+        "id": "SL-26",
+        "message": "调用 add(2, 3) 得到 -1，正确结果应为 5。请修复加法实现。",
+        "expected_contains": ["add"],
+    },
+    {
         "id": "SL-16",
         "message": "解释 calc.py 做什么",
         "expected_empty_or_no_misleading": True,

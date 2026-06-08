@@ -67,16 +67,18 @@
   {
     "id": "nameerror_greet",
     "tier": "easy",
-    "grading": "exact",
-    "description": "greet.py 使用未定义变量 msg",
-    "message": "Traceback (most recent call last):\n  File \"greet.py\", line 2, in greet\n    return msg\nNameError: name 'msg' is not defined",
+    "grading": "tests_only",
+    "lock_tests": true,
+    "description": "greet.py 使用未定义变量 msg；pytest 断言应返回参数 name（非 greeting 字符串）",
+    "message": "pytest 失败：tests/test_greet.py::test_greet — NameError: name 'msg' is not defined",
     "setup_files": {
-      "greet.py": "def greet(name):\n    return msg\n"
+      "greet.py": "def greet(name):\n    return msg\n",
+      "tests/test_greet.py": "from greet import greet\n\ndef test_greet():\n    assert greet(\"Ada\") == \"Ada\"\n    assert greet(\"Bob\") == \"Bob\"\n"
     },
     "expect_files": {
       "greet.py": "def greet(name):\n    return name\n"
     },
-    "verify": "py_compile",
+    "verify": "pytest",
     "harness_intent": "fix_bug"
   },
   {

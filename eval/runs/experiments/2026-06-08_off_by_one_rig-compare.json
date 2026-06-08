@@ -1,0 +1,71 @@
+{
+  "task_id": "off_by_one_sum",
+  "baseline_without_rig_phase71": {
+    "passed": false,
+    "failure_step": "verify",
+    "failure_type": "fallback_open",
+    "generate_attempts": 1,
+    "prompt": "仅 tests/test_sum.py，无 sum_first.py"
+  },
+  "with_rig_build": {
+    "rig_stats": {
+      "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-off_by_one_sum-rig-q5405fhi\\.mini-coding-agent\\rig.db",
+      "files": 2,
+      "symbols": 2,
+      "imports": 1
+    },
+    "inputs_before_live": {
+      "rig_db_exists": true,
+      "used_rig": true,
+      "locate_files": [
+        "tests/test_sum.py",
+        "sum_first.py"
+      ],
+      "snippet_headers": [
+        "# rig: test_sum_first @ tests/test_sum.py:3",
+        "# rig: neighbor sum_first.py"
+      ],
+      "prompt_has_sum_first_source": true
+    },
+    "passed": false,
+    "pipeline_ok": null,
+    "outcome_ok": false,
+    "failure_type": "exception",
+    "failure_step": "exception",
+    "reason": "timed out",
+    "elapsed_ms": 295686.36530000006,
+    "generate_attempts": 2,
+    "open_fallback": true,
+    "files_touched": [
+      "tests/test_sum.py",
+      "sum_first.py"
+    ],
+    "last_verify": {
+      "ok": false,
+      "method": null,
+      "summary": "错误：patch_file 参数无效：参数 old_text 须恰好出现 1 次，实际出现 0 次\n示例：<tool name=\"patch_file\" path=\"binary_search.py\"><old_text>return -1</old_text><new_text>return mid</new_text></tool>"
+    },
+    "steps": [
+      {
+        "step": "locate",
+        "status": "ok",
+        "detail": "[harness] fix_bug 1/3 locate ok"
+      },
+      {
+        "step": "generate",
+        "status": "fail",
+        "detail": "[harness] fix_bug 2/3 generate fail"
+      },
+      {
+        "step": "generate",
+        "status": "fail",
+        "detail": "[harness] fix_bug 3/3 generate fail"
+      },
+      {
+        "step": "exception",
+        "status": "fail",
+        "detail": "timed out"
+      }
+    ]
+  }
+}

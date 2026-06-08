@@ -132,6 +132,7 @@ def task_result_to_dict(result: TaskResult) -> dict:
 def build_observability(agent: MiniAgent, stderr: str) -> dict:
     """handle_ask 后从 session + stderr 组装 observability。"""
     session = agent.session
+    trace = session.get("harness_trace")
     return {
         "gate": session.get("last_gate"),
         "last_verify": session.get("last_verify"),
@@ -139,6 +140,7 @@ def build_observability(agent: MiniAgent, stderr: str) -> dict:
         "files_touched": list(session.get("last_files_touched") or []),
         "open_fallback": "降级 open" in (stderr or ""),
         "generate_attempts": count_generate_attempts(stderr),
+        "stage_trace": list(trace) if isinstance(trace, list) else [],
     }
 
 
@@ -519,6 +521,10 @@ def _finalize_task_result(
         failure_step = infer_failure_step(stderr_text)
         reason = f"流水线降级 open；回答：{answer[:200]}"
         steps.append({"step": failure_step, "status": "fail", "detail": reason})
+    elif answer.startswith("流水线失败："):
+        failure_step = infer_failure_step(stderr_text)
+        reason = answer
+        steps.append({"step": failure_step or "pipeline", "status": "fail", "detail": reason[:300]})
     else:
         failure_step = None
         reason = None
@@ -645,6 +651,34 @@ def _format_fix_suggestions(agg: dict[str, list[str]]) -> list[str]:
     return lines
 
 
+def _stage_trace_markdown(trace: list[dict]) -> list[str]:
+    """将 stage_trace 格式化为 Markdown 小节。"""
+    if not trace:
+        return []
+    lines = ["", "## 阶段追踪（input / output）", ""]
+    for entry in trace:
+        stage = entry.get("stage", "?")
+        lines.append(f"### {stage}")
+        if entry.get("meta"):
+            lines.append(f"- meta: `{json.dumps(entry['meta'], ensure_ascii=False)}`")
+        inp = entry.get("input")
+        if inp is not None:
+            lines.append("")
+            lines.append("**input**")
+            lines.append("```")
+            lines.append(json.dumps(inp, ensure_ascii=False, indent=2))
+            lines.append("```")
+        out = entry.get("output")
+        if out is not None:
+            lines.append("")
+            lines.append("**output**")
+            lines.append("```")
+            lines.append(json.dumps(out, ensure_ascii=False, indent=2))
+            lines.append("```")
+        lines.append("")
+    return lines
+
+
 def format_report_markdown(results: list[TaskResult]) -> str:
     """Markdown 报告：task_id、pass/fail、failure_type、耗时。"""
     lines = [
@@ -704,6 +738,12 @@ def format_report_markdown(results: list[TaskResult]) -> str:
         suggestions = _format_fix_suggestions(agg)
         if suggestions:
             lines.extend(["", "## 建议优先改动", ""] + suggestions)
+
+    for r in results:
+        trace = (r.observability or {}).get("stage_trace") or []
+        if trace:
+            lines.append(f"\n---\n\n## 任务 `{r.task_id}` 阶段追踪")
+            lines.extend(_stage_trace_markdown(trace)[3:])
 
     return "\n".join(lines) + "\n"
 
@@ -800,6 +840,13 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="passed 同时要求 pipeline_ok（有 architecture 的任务）",
     )
+    parser.add_argument(
+        "--output",
+        "-o",
+        type=Path,
+        metavar="PATH",
+        help="将报告写入文件（同时仍打印到 stdout）",
+    )
     args = parser.parse_args(argv)
 
     if not args.skip_preflight:
@@ -835,6 +882,9 @@ def main(argv: list[str] | None = None) -> int:
     else:
         report = format_report_json(results)
     print(report, end="")
+    if args.output:
+        args.output.parent.mkdir(parents=True, exist_ok=True)
+        args.output.write_text(report, encoding="utf-8")
 
     all_passed = all(r.passed for r in results)
     return 0 if all_passed else 1

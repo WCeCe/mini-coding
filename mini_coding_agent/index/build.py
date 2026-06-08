@@ -4,7 +4,7 @@ import ast
 from pathlib import Path
 
 from mini_coding_agent.platform.constants import IGNORED_PATH_NAMES
-from mini_coding_agent.index.store import RigStore, default_db_path
+from mini_coding_agent.index.store import RigStore, default_db_path, rig_db_exists
 
 
 def build_rig(repo_root: str | Path, *, db_path: Path | None = None) -> dict:
@@ -38,6 +38,23 @@ def build_rig(repo_root: str | Path, *, db_path: Path | None = None) -> dict:
         "symbols": symbol_count,
         "imports": import_count,
     }
+
+
+def ensure_rig(repo_root: str | Path) -> dict:
+    """Harness 前置条件：工作区尚无 rig.db 时全量构建。"""
+    root = Path(repo_root).resolve()
+    db_path = default_db_path(root)
+    if rig_db_exists(root):
+        return {
+            "built": False,
+            "db_path": str(db_path),
+            "files": 0,
+            "symbols": 0,
+            "imports": 0,
+        }
+    stats = build_rig(root)
+    stats["built"] = True
+    return stats
 
 
 def _iter_python_files(root: Path):

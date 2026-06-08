@@ -1,0 +1,173 @@
+{
+  "summary": {
+    "passed": 0,
+    "total": 1,
+    "outcome_ok": 0,
+    "pipeline_ok": 0,
+    "pipeline_ok_total": 0,
+    "failure_types": {
+      "expect_files": 1
+    }
+  },
+  "tasks": [
+    {
+      "task_id": "syntaxerror_paren",
+      "passed": false,
+      "pipeline_ok": null,
+      "outcome_ok": false,
+      "failure_type": "expect_files",
+      "observability": {
+        "gate": {
+          "intent_id": "fix_bug",
+          "confidence": "high",
+          "route": "harness_pipeline"
+        },
+        "last_verify": {
+          "ok": true,
+          "method": "py_compile",
+          "summary": "py_compile 通过：calc.py"
+        },
+        "harness_last_node": {
+          "intent_id": "fix_bug",
+          "node_id": "verify",
+          "type": "verify",
+          "ok": true
+        },
+        "files_touched": [
+          "calc.py"
+        ],
+        "open_fallback": false,
+        "generate_attempts": 1,
+        "stage_trace": [
+          {
+            "stage": "gate",
+            "input": {
+              "user_message": "  File \"calc.py\", line 2\n    return (a + b\n              ^\nSyntaxError: '(' was never closed",
+              "prompt": "你是 Mini-Coding-Agent 的意图分类器（Gate）。\n\n根据用户消息，将其归入下列五类意图之一；仅回复一个 JSON 对象（不要用 markdown 围栏，不要附加说明）。\n\nJSON 字段名必须为英文，说明性文字可用中文。\n\n{\n  \"intent_id\": \"generate_code | fix_bug | refactor | explain | project_ops\",\n  \"confidence\": \"high | low\",\n  \"skill\": \"null 或 skill 名字符串（可选）\"\n}\n\n五类意图（intent_id 必须精确使用下列英文 id）：\n\n| intent_id | 含义 | 典型用户话 |\n|-----------|------|------------|\n| generate_code | 新增/实现代码：新文件、新函数、加测试、按需求写功能 | 「实现一个…」「加个模块」「写单元测试」 |\n| fix_bug | 修复错误：traceback、测试挂、行为不对 | 「报错」「修 bug」「测试失败」 |\n| refactor | 不改语义前提下改结构：重命名、抽函数、整理目录 | 「重构」「提取公共逻辑」 |\n| explain | 只理解不改码：解释、阅读、梳理调用 | 「什么意思」「怎么工作的」「解释一下」 |\n| project_ops | 项目操作：装依赖、跑测试/脚本、git 状态（非改源码） | 「跑 pytest」「pip install」「git status」 |\n\n边界示例（减少混类）：\n\n1. 中英混杂 · 又要改又要解释：「explain how login works and fix the bug in auth.py」\n   → 要改文件 → fix_bug（不是 explain）\n\n2. 中英混杂 · 只跑不改：「please run pytest for me, 不用改代码」\n   → project_ops（不是 fix_bug）\n\n3. 「写测试」：新测试文件/大量新增 → generate_code；测试挂了要修 → fix_bug\n\n4. 「跑一下测试」不改码 → project_ops\n\n5. 意图跨多类且无法确定主目标 → confidence=low\n\n规则：\n\n- confidence=high：意图明确、可归入上述五类之一。\n\n- confidence=low：意图含糊、跨多类、或无法判断是否要改代码。\n\n- skill：若用户明确点名某 Skill 名可填字符串，否则 null。\n\n用户消息：\nFile \"calc.py\", line 2\n    return (a + b\n              ^\nSyntaxError: '(' was never closed"
+            },
+            "output": {
+              "intent_id": "fix_bug",
+              "confidence": "high",
+              "route": "harness_pipeline",
+              "raw": "{\n  \"intent_id\": \"fix_bug\",\n  \"confidence\": \"high\",\n  \"skill\": null\n}"
+            }
+          },
+          {
+            "stage": "rig",
+            "output": {
+              "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-syntaxerror_paren-ogf5bj3d\\.mini-coding-agent\\rig.db",
+              "files": 1,
+              "symbols": 0,
+              "imports": 0,
+              "built": true
+            }
+          },
+          {
+            "stage": "slots",
+            "input": {
+              "user_message": "  File \"calc.py\", line 2\n    return (a + b\n              ^\nSyntaxError: '(' was never closed",
+              "intent_id": "fix_bug"
+            },
+            "output": {
+              "goal": "File \"calc.py\", line 2\n    return (a + b\n              ^\nSyntaxError: '(' was never closed",
+              "files_hint": [
+                "calc.py"
+              ],
+              "symbols_hint": []
+            }
+          },
+          {
+            "stage": "locate",
+            "input": {
+              "slots": {
+                "goal": "File \"calc.py\", line 2\n    return (a + b\n              ^\nSyntaxError: '(' was never closed",
+                "files_hint": [
+                  "calc.py"
+                ],
+                "symbols_hint": []
+              }
+            },
+            "output": {
+              "ok": true,
+              "message": "定位完成（hint+search）：1 个文件",
+              "files": [
+                "calc.py"
+              ],
+              "snippets": [
+                "# file: calc.py L1-L120\n   1: def add(a, b):\n   2:     return (a + b"
+              ],
+              "used_rig": false,
+              "symbols_hint": []
+            }
+          },
+          {
+            "stage": "generate",
+            "input": {
+              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'calc.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"calc.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\nFile \"calc.py\", line 2\n    return (a + b\n              ^\nSyntaxError: '(' was never closed\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\ndef add(a, b):\n    return (a + b\n\n```\n\n定位上下文：\n\n# file: calc.py L1-L120\n   1: def add(a, b):\n   2:     return (a + b",
+              "attempt": 0
+            },
+            "output": {
+              "raw": "<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"calc.py\",\"new_text\":\"def add(a, b):\\n    return (a + b)}}</tool>",
+              "ok": true,
+              "message": "已修补 calc.py",
+              "tool": "patch_file",
+              "args": {
+                "path": "calc.py",
+                "old_text": "def add(a, b):\n    return (a + b\n",
+                "new_text": "def add(a, b):\n    return (a + b)"
+              },
+              "path": "calc.py"
+            },
+            "meta": {
+              "intent_id": "fix_bug"
+            }
+          },
+          {
+            "stage": "verify",
+            "input": {
+              "intent_id": "fix_bug",
+              "generate_attempt": 0
+            },
+            "output": {
+              "ok": true,
+              "message": "py_compile 通过：calc.py",
+              "data": {
+                "method": "py_compile",
+                "paths": [
+                  "calc.py"
+                ]
+              }
+            }
+          }
+        ]
+      },
+      "failure_step": "expect_files",
+      "reason": "calc.py 内容与期望不符",
+      "elapsed_ms": 123447.4,
+      "steps": [
+        {
+          "step": "locate",
+          "status": "ok",
+          "detail": "[harness] fix_bug 1/3 locate ok"
+        },
+        {
+          "step": "generate",
+          "status": "ok",
+          "detail": "[harness] fix_bug 2/3 generate ok"
+        },
+        {
+          "step": "verify",
+          "status": "ok",
+          "detail": "[harness] fix_bug 3/3 verify ok"
+        },
+        {
+          "step": "expect_files",
+          "status": "fail",
+          "detail": "calc.py 内容与期望不符"
+        }
+      ],
+      "tier": "easy",
+      "grading": "exact"
+    }
+  ]
+}

@@ -19,11 +19,12 @@
     → Planner（意图 → 静态 DAG 模板 + 槽位）
     → Executor（按节点拓扑执行；LLM 仅在指定节点）
     → verify 闭环 [→ review，按模板]
-【降级】confidence=low / 流水线失败 → modes/open · ask()
+【降级】confidence=low → modes/open · ask()
+【错误】流水线失败 / verify 重试耗尽 → 返回「流水线失败：…」（**Phase 7.2+**，不降级 open）
 【度量】eval/ 任务集 + FakeModel 回归 + 可选 --live Ollama
 ```
 
-**面试叙事**：小模型不做调度器；**本地 LLM 只做 Gate 与节点工位**。编排由模板 DAG + 执行引擎完成；离线图谱缩小改动范围；改码走 governance；不确定则降级 open loop。
+**面试叙事**：小模型不做调度器；**本地 LLM 只做 Gate 与节点工位**。编排由模板 DAG + 执行引擎完成；离线图谱缩小改动范围；改码走 governance；Gate 不确定则 open loop；**pipeline 已跑则失败即报错**（7.2）。
 
 **与 Phase 1–4**：Graph 为编排壳；治理 / Hook / Skill / `make_plan` / `delegate` **复用** `platform/`。
 
@@ -90,7 +91,7 @@ eval/
 |------|------|
 | 入口 | `modes/graph/runner.py` · `handle_ask` |
 | Gate | `modes/graph/gate.py` |
-| 降级 | `modes/open/agent.py` · `ask()` |
+| 降级 | `modes/open/agent.py` · `ask()`（**仅 Gate low**；pipeline 失败见 runner） |
 | 治理 | `platform/governance.py` |
 
 详见 [`02-codebase-reference.md`](./02-codebase-reference.md)。
@@ -150,11 +151,13 @@ GL-1–GL-5 eval 驱动黄金闭环（§7）
 
 ### 5.2 路由
 
-| 条件 | route |
-|------|-------|
+> **Phase 7.2 变更**：第三行由「fallback open」改为「返回流水线错误」。
+
+| 条件 | route / 行为 |
+|------|--------------|
 | `confidence=high` 且 intent∈五类 | `harness_pipeline` |
-| `confidence=low` 或非法 intent | `open` |
-| 流水线异常 / verify 重试耗尽 | fallback `open` |
+| `confidence=low` 或非法 intent | `open` → `ask()` |
+| 流水线异常 / verify 重试耗尽 | **返回 `流水线失败：…`**（不降级 open） |
 
 CLI：`--harness on|off` · `--gate-log`（仅观测 Gate）。
 
@@ -336,7 +339,7 @@ python eval/run_eval.py --task nameerror_calc
 |---|------|
 | 1 | Gate 首版 = LLM；意图封闭 5 类 |
 | 2 | DAG = 静态模板 + 槽位 |
-| 3 | low / 非法 / 流水线失败 → open |
+| 3 | low / 非法 → open；**流水线失败 → 错误**（7.2 修订，原 open 降级已取消） |
 | 4 | index 纳入 MVP；语言 MVP = Python |
 | 5 | 保留 `ask()`；整包 harness，graph 为一种 mode |
 | 6 | eval 驱动 fix_bug；其余意图 FakeModel 覆盖、live 暂缓 |

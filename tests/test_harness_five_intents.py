@@ -25,6 +25,14 @@ def _gate_json(intent_id, confidence="high", skill=None):
     return json.dumps(payload, ensure_ascii=False)
 
 
+def _patch_new_text(new, path="calc.py"):
+    return (
+        '<tool>{"name":"patch_file","args":'
+        f'{{"path":"{path}","new_text":{json.dumps(new)}}}'
+        "}</tool>"
+    )
+
+
 def _patch_tool(old, new, path="calc.py"):
     return (
         '<tool>{"name":"patch_file","args":'
@@ -98,7 +106,7 @@ def test_high_intent_enters_pipeline_not_silent_open(tmp_path, intent_id, capsys
 
     if intent_id == "fix_bug":
         (tmp_path / "calc.py").write_text("def add(a, b):\n    return a + c\n", encoding="utf-8")
-        outputs += [_patch_tool("return a + c", "return a + b")]
+        outputs += [_patch_new_text("def add(a, b):\n    return a + b\n")]
     elif intent_id == "generate_code":
         outputs += [
             _write_tool("hello.py", "def hello():\n    return 1\n"),
@@ -107,7 +115,7 @@ def test_high_intent_enters_pipeline_not_silent_open(tmp_path, intent_id, capsys
     elif intent_id == "refactor":
         outputs += [
             _sample_plan(),
-            _patch_tool("x = 1", "x = 2"),
+            _patch_new_text("x = 2\n"),
             "<final>refactor ok</final>",
         ]
     elif intent_id == "explain":
@@ -219,7 +227,7 @@ def test_gate_skill_preloads_before_pipeline(tmp_path):
         tmp_path,
         [
             _gate_json("fix_bug", "high", skill="code-review"),
-            _patch_tool("return a + c", "return a + b"),
+            _patch_new_text("def add(a, b):\n    return a + b\n"),
             "<final>with skill</final>",
         ],
     )

@@ -31,6 +31,15 @@ def _patch_tool(old, new, path="calc.py"):
     )
 
 
+def _patch_new_text(new, path="calc.py"):
+    """fix_bug 引导模式：模型只产 new_text。"""
+    return (
+        '<tool>{"name":"patch_file","args":'
+        f'{{"path":"{path}","new_text":{json.dumps(new)}}}'
+        "}</tool>"
+    )
+
+
 def _build_agent(tmp_path, outputs, **kwargs):
     (tmp_path / "README.md").write_text("demo\n", encoding="utf-8")
     workspace = WorkspaceContext.build(tmp_path)
@@ -58,7 +67,7 @@ def test_fix_bug_e2e_harness_pipeline(tmp_path):
         tmp_path,
         [
             _gate_json("fix_bug", "high"),
-            _patch_tool("return a + c", "return a + b"),
+            _patch_new_text("def add(a, b):\n    return a + b\n"),
         ],
     )
     ask_calls = []
@@ -80,8 +89,10 @@ def test_fix_bug_e2e_harness_pipeline(tmp_path):
 
 def test_verify_retry_runs_generate_twice(tmp_path):
     (tmp_path / "calc.py").write_text("def add(a, b):\n    return a + c\n", encoding="utf-8")
-    bad_patch = _patch_tool("return a + c", "return a +")
-    good_patch = _patch_tool("return a +", "return a + b")
+    calc_bad = "def add(a, b):\n    return a +\n"
+    calc_good = "def add(a, b):\n    return a + b\n"
+    bad_patch = _patch_new_text(calc_bad)
+    good_patch = _patch_new_text(calc_good)
     agent = _build_agent(
         tmp_path,
         [
@@ -98,17 +109,19 @@ def test_verify_retry_runs_generate_twice(tmp_path):
     assert len(agent.model_client.prompts) == 2
 
 
-def test_pipeline_failure_fallback_open(tmp_path):
+def test_pipeline_failure_returns_error_without_open_fallback(tmp_path):
     agent = _build_agent(
         tmp_path,
         [
             _gate_json("fix_bug", "high"),
             "invalid model output without tool",
-            "<final>open 降级回答。</final>",
+            "<final>open 不应被调用。</final>",
         ],
     )
     answer = handle_ask(agent, TRACEBACK, harness_enabled=True)
-    assert answer == "open 降级回答。"
+    assert answer.startswith("流水线失败：")
+    assert len(agent.model_client.prompts) == 2
+    assert "open 不应被调用" not in answer
 
 
 def test_generate_uses_run_tool_governance(tmp_path):
@@ -116,7 +129,7 @@ def test_generate_uses_run_tool_governance(tmp_path):
     agent = _build_agent(
         tmp_path,
         [
-            _patch_tool("x = 1", "x = 2"),
+            _patch_new_text("x = 2\n"),
         ],
         approval_policy="auto",
     )
@@ -141,7 +154,7 @@ def test_run_pipeline_integration(tmp_path):
     agent = _build_agent(
         tmp_path,
         [
-            _patch_tool("return a + c", "return a + b"),
+            _patch_new_text("def add(a, b):\n    return a + b\n"),
         ],
     )
     result = run_pipeline(agent, "fix_bug", TRACEBACK)
@@ -154,8 +167,8 @@ def test_executor_verify_retry_via_mock(tmp_path):
     agent = _build_agent(
         tmp_path,
         [
-            _patch_tool("return a + c", "return a +"),
-            _patch_tool("return a +", "return a + b"),
+            _patch_new_text("def add(a, b):\n    return a +\n"),
+            _patch_new_text("def add(a, b):\n    return a + b\n"),
         ],
     )
     dag = plan("fix_bug", user_message=TRACEBACK, workspace_root=tmp_path)

@@ -41,13 +41,22 @@ def file_sha256(path):
     return text_sha256(path.read_text(encoding="utf-8"))
 
 
+def ensure_trailing_newline(content) -> str:
+    """POSIX 文本文件习惯：非空内容以换行结尾（Phase 7.4）。"""
+    text = str(content)
+    if text and not text.endswith("\n"):
+        return text + "\n"
+    return text
+
+
 # 保证原子性，先临时再原子替换
 def atomic_write_text(path, content):
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
+    normalized = ensure_trailing_newline(content)
     # 创建一个临时文件，后缀为.mini-agent.tmp，with_suffix替换路径中的文件后缀名
     tmp = path.with_suffix(path.suffix + ".mini-agent.tmp")
-    tmp.write_text(str(content), encoding="utf-8")
+    tmp.write_text(normalized, encoding="utf-8")
     tmp.replace(path)
 
 

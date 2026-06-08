@@ -170,6 +170,24 @@ def test_patch_file_replaces_exact_match(tmp_path):
     assert file_path.read_text(encoding="utf-8") == "hello agent\n"
 
 
+def test_patch_file_appends_trailing_newline_when_missing(tmp_path):
+    """Phase 7.4：写盘自动补 POSIX 末行换行。"""
+    file_path = tmp_path / "calc.py"
+    file_path.write_text("def add(a, b):\n    return (a + b\n", encoding="utf-8")
+    agent = build_agent(tmp_path, [])
+    fixed = "def add(a, b):\n    return (a + b)"
+    result = agent.run_tool(
+        "patch_file",
+        {
+            "path": "calc.py",
+            "old_text": file_path.read_text(encoding="utf-8"),
+            "new_text": fixed,
+        },
+    )
+    assert result == "已修补 calc.py"
+    assert file_path.read_text(encoding="utf-8") == fixed + "\n"
+
+
 def test_invalid_risky_tool_does_not_prompt_for_approval(tmp_path):
     agent = build_agent(tmp_path, [], approval_policy="ask")
 

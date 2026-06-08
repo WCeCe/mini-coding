@@ -16,6 +16,7 @@ HARNESS_SESSION_KEYS = (
     "last_verify",
     "harness_last_node",
     "harness_node_outputs",
+    "harness_trace",
 )
 
 FILES_TOUCHED_LIMIT = 8
@@ -28,6 +29,7 @@ def empty_harness_fields() -> dict:
         "last_verify": None,
         "harness_last_node": None,
         "harness_node_outputs": None,
+        "harness_trace": None,
     }
 
 
@@ -38,6 +40,7 @@ def ensure_harness_session_shape(session: dict) -> None:
     session.setdefault("last_verify", None)
     session.setdefault("harness_last_node", None)
     session.setdefault("harness_node_outputs", None)
+    session.setdefault("harness_trace", None)
 
 
 def clear_harness_session(session: dict) -> None:
@@ -67,6 +70,8 @@ def persist_pipeline_session(agent, ctx: HarnessContext, pipeline_result: Pipeli
     agent.session["last_files_touched"] = _collect_files_touched(ctx)
     agent.session["last_verify"] = _summarize_verify(ctx, pipeline_result)
     agent.session["harness_node_outputs"] = _serialize_node_outputs(ctx)
+    if agent.session.get("harness_trace") is None:
+        agent.session["harness_trace"] = []
     _save(agent)
 
 
