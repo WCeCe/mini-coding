@@ -3127,5 +3127,6 @@
       "tier": "medium",
       "grading": "tests_only"
     }
-  ]
+  ],
+  "note": "Phase 7.4 + CI fake_script fix + path priority; from 2026-06-08_full-19tasks-rerun"
 }

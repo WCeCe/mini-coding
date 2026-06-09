@@ -7,6 +7,7 @@ import argparse
 import contextlib
 import io
 import json
+import os
 import re
 import sys
 import tempfile
@@ -39,6 +40,11 @@ from mini_coding_agent.platform.wait_display import set_wait_display_enabled  # 
 
 EVAL_DIR = Path(__file__).resolve().parent
 DEFAULT_TASKS_PATH = EVAL_DIR / "tasks.json"
+
+
+def ensure_eval_lock_tests_env() -> None:
+    """eval 进程默认锁定 tests/；CLI 不设此变量则 lock_tests 关闭。"""
+    os.environ.setdefault("HARNESS_LOCK_TESTS", "1")
 
 _HARNESS_STEP = re.compile(
     r"\[harness\]\s+\S+\s+\d+/\d+\s+(\w+)\s+(ok|fail)",
@@ -320,17 +326,11 @@ def load_tasks(path: Path | None = None) -> list[dict]:
 
 
 def resolve_task_grading(task: dict) -> str:
-    """解析 grading；缺省时：有 expect_files → exact，仅 verify → tests_only。"""
+    """live 终判统一 tests_only；grading: exact 为遗留别名。"""
     explicit = task.get("grading")
     if explicit in ("exact", "tests_only"):
-        return explicit
-    expect = task.get("expect_files") or {}
-    if expect:
-        return "exact"
-    verify = str(task.get("verify", "none"))
-    if verify and verify != "none":
         return "tests_only"
-    return "exact"
+    return "tests_only"
 
 
 def setup_task_workspace(root: Path, task: dict) -> None:
@@ -395,11 +395,6 @@ def check_task_grading(root: Path, task: dict) -> tuple[str | None, str | None]:
     lock_err = check_lock_tests(root, task)
     if lock_err:
         return lock_err, "lock_tests"
-
-    if grading == "exact":
-        expect_err = check_expect_files(root, task.get("expect_files") or {})
-        if expect_err:
-            return expect_err, "expect_files"
 
     verify_err = check_task_verify(root, task.get("verify", "none"))
     if verify_err:
@@ -564,6 +559,7 @@ def run_single_task(
     strict_pipeline: bool = False,
 ) -> TaskResult:
     """在独立临时目录执行单条 eval 任务（真实 Ollama）。"""
+    ensure_eval_lock_tests_env()
     task_id = str(task.get("id", "unknown"))
     t0 = time.perf_counter()
 
@@ -848,6 +844,7 @@ def main(argv: list[str] | None = None) -> int:
         help="将报告写入文件（同时仍打印到 stdout）",
     )
     args = parser.parse_args(argv)
+    ensure_eval_lock_tests_env()
 
     if not args.skip_preflight:
         err = check_ollama_available(args.host, args.model)

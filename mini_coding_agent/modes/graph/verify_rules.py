@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import py_compile
 import subprocess
 import sys
@@ -137,6 +138,56 @@ def workspace_has_tests(root: Path) -> bool:
     return (root / "tests").is_dir()
 
 
+def lock_tests_enabled() -> bool:
+    """eval 模式锁定 tests/；CLI 默认不锁（HARNESS_LOCK_TESTS=0）。"""
+    return os.environ.get("HARNESS_LOCK_TESTS", "0").strip().lower() in ("1", "true", "yes")
+
+
+def _run_shell_test_command(root: Path, command: str, *, timeout: int = 60) -> str | None:
+    proc = subprocess.run(
+        command,
+        cwd=root,
+        shell=True,
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+        timeout=timeout,
+    )
+    if proc.returncode != 0:
+        detail = (proc.stderr or proc.stdout or "").strip()
+        return f"测试命令失败（exit {proc.returncode}）：{detail[:500]}"
+    return None
+
+
+def run_workspace_verify(
+    root: Path,
+    *,
+    slots_test_command: str | None = None,
+    verify: str | None = None,
+) -> str | None:
+    """工作区终判：harness verify 节点与 eval grading 共用。成功返回 None。"""
+    if verify == "none":
+        return None
+
+    has_tests = workspace_has_tests(root)
+    cmd = resolve_test_command(root, slots_test_command)
+
+    if verify == "pytest":
+        if cmd and cmd.strip() not in ("python -m pytest -q",):
+            return _run_shell_test_command(root, cmd)
+        return run_pytest(root)
+    if verify == "py_compile":
+        return run_py_compile_all(root)
+
+    # auto：有 tests/ 或探测到 pytest → pytest；否则 py_compile
+    if has_tests or cmd:
+        if cmd and cmd.strip() not in ("python -m pytest -q",):
+            return _run_shell_test_command(root, cmd)
+        return run_pytest(root)
+    return run_py_compile_all(root)
+
+
 def run_py_compile_paths(root: Path, paths: list[str]) -> str | None:
     errors: list[str] = []
     for rel in paths:
@@ -183,11 +234,7 @@ def run_pytest(root: Path, *, timeout: int = 60) -> str | None:
 
 
 def run_task_verify(root: Path, verify: str | None) -> str | None:
-    """eval 任务级 verify；与 harness 语义对齐。"""
-    if verify in ("", "none", None):
-        return None
-    if verify == "py_compile":
-        return run_py_compile_all(root)
-    if verify == "pytest":
-        return run_pytest(root)
-    return f"未知 verify 类型：{verify!r}"
+    """eval 任务级 verify；与 harness verify 节点共用 run_workspace_verify。"""
+    if verify in ("", None):
+        return run_workspace_verify(root, verify=None)
+    return run_workspace_verify(root, verify=verify)

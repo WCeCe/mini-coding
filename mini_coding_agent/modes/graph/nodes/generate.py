@@ -380,6 +380,10 @@ def _build_generate_prompt(ctx: HarnessContext) -> str:
 
             f"目标：\n{ctx.dag.slots.goal}",
 
+            _syntax_repair_hint(ctx),
+
+            _test_spec_block(ctx),
+
             _retry_block(ctx),
 
             guided_block,
@@ -406,11 +410,93 @@ def _retry_block(ctx: HarnessContext) -> str:
 
         parts.append(f"上次失败，请修正：\n{ctx.last_verify_error}")
 
+        if "AssertionError" in ctx.last_verify_error:
+
+            parts.append(
+
+                "pytest 断言失败：请使函数返回值/行为与上方「测试规格」中的 assert 一致；"
+
+                "不要仅消除 NameError/SyntaxError，也不要擅自加问候语或格式化字符串。"
+
+            )
+
     if ctx.generate_attempt > 0:
 
         parts.append(f"（第 {ctx.generate_attempt + 1} 次 generate 尝试）")
 
     return "\n".join(parts)
+
+
+def _test_spec_block(ctx: HarnessContext) -> str:
+
+    """从 locate 测试 snippet 提取 assert，作为 fix_bug 的行为规格（Phase 8.2）。"""
+
+    if ctx.dag.intent_id != "fix_bug":
+
+        return ""
+
+    locate = ctx.node_outputs.get("locate")
+
+    if not locate:
+
+        return ""
+
+    asserts: list[str] = []
+
+    for snippet in locate.data.get("snippets") or []:
+
+        norm = snippet.replace("\\", "/")
+
+        if "tests/" not in norm:
+
+            continue
+
+        for line in snippet.splitlines():
+
+            m = _NUMBERED_SNIPPET_LINE.match(line)
+
+            body = m.group(1).strip() if m else line.strip()
+
+            if body.startswith("assert ") or body.startswith("assert("):
+
+                asserts.append(body)
+
+    if not asserts:
+
+        return ""
+
+    lines = [
+
+        "测试规格（必须满足；禁止修改 tests/ 下文件；以 assert 为准，勿擅自改语义）：",
+
+    ]
+
+    for item in asserts[:10]:
+
+        lines.append(f"- {item}")
+
+    return "\n".join(lines)
+
+
+def _syntax_repair_hint(ctx: HarnessContext) -> str:
+
+    if ctx.dag.intent_id != "fix_bug":
+
+        return ""
+
+    goal = ctx.dag.slots.goal or ""
+
+    if "SyntaxError" not in goal:
+
+        return ""
+
+    return (
+
+        "语法修复提示：补全缺失的括号、冒号或引号，使代码可编译；"
+
+        "保持原函数计算语义（如加法/比较），仅修语法结构。"
+
+    )
 
 
 

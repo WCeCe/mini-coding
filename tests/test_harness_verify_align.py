@@ -102,6 +102,12 @@ def _disable_wait_display():
     set_wait_display_enabled(True)
 
 
+@pytest.fixture(autouse=True)
+def _enable_lock_tests_for_harness_tests(monkeypatch):
+    """本文件测 lock_tests 行为；与 eval 默认一致。"""
+    monkeypatch.setenv("HARNESS_LOCK_TESTS", "1")
+
+
 def test_resolve_test_command_when_tests_dir_exists(tmp_path):
     (tmp_path / "tests").mkdir()
     assert resolve_test_command(tmp_path) == "python -m pytest -q"
@@ -118,8 +124,7 @@ def test_wrong_fix_py_compile_ok_but_pytest_fails(tmp_path):
     ctx = _verify_ctx(tmp_path)
     result = run_verify(ctx)
     assert result.ok is False
-    assert result.data.get("method") == "shell"
-    assert result.data.get("command") == "python -m pytest -q"
+    assert result.data.get("method") == "pytest"
 
 
 def test_correct_fix_with_tests_passes_verify(tmp_path):
@@ -133,7 +138,19 @@ def test_correct_fix_with_tests_passes_verify(tmp_path):
     ctx = _verify_ctx(tmp_path)
     result = run_verify(ctx)
     assert result.ok is True
-    assert result.data.get("method") == "shell"
+    assert result.data.get("method") == "pytest"
+
+
+def test_lock_tests_disabled_skips_snapshot_check(tmp_path, monkeypatch):
+    monkeypatch.setenv("HARNESS_LOCK_TESTS", "0")
+    _setup_sum_task(tmp_path, buggy=False)
+    baseline = collect_tests_snapshot(tmp_path)
+    test_file = tmp_path / "tests/test_sum.py"
+    test_file.write_text(test_file.read_text(encoding="utf-8") + "\n", encoding="utf-8")
+    ctx = _verify_ctx(tmp_path)
+    ctx.test_baseline = baseline
+    result = run_verify(ctx)
+    assert result.ok is True
 
 
 def test_no_tests_dir_uses_py_compile(tmp_path):

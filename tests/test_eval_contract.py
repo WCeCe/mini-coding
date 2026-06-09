@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from eval.run_eval import build_eval_agent, check_task_grading, setup_task_workspace
+from eval.run_eval import build_eval_agent, check_task_grading, ensure_eval_lock_tests_env, setup_task_workspace
 from eval.task_schema import (
     apply_harness_contract_hints,
     assert_pipeline_contract,
@@ -35,6 +35,12 @@ def _disable_wait_display():
     set_wait_display_enabled(False)
     yield
     set_wait_display_enabled(True)
+
+
+@pytest.fixture(autouse=True)
+def _eval_lock_tests_like_live():
+    """与 live eval 一致：lock_tests 开启（tasks.json lock_tests: true）。"""
+    ensure_eval_lock_tests_env()
 
 
 @pytest.mark.parametrize("task_id", CONTRACT_TASK_IDS)
@@ -87,6 +93,14 @@ def test_architecture_locate_fails_without_valid_snippet(tmp_path: Path):
     result = run_locate(ctx)
     assert result.ok is False
     assert result.message == "locate：无有效源码 snippet"
+
+
+def test_bench_retry_fake_script_has_retry_buffer_outputs():
+    """B1 retry：gate + 错误 patch + 正确 patch + 缓冲（policy_block 重试不挤占 verify 预算）。"""
+    tasks = load_tasks(TASKS_PATH)
+    task = next(t for t in tasks if t["id"] == "bench_retry_off_by_one")
+    outputs = fake_script_to_outputs(task["fake_script"])
+    assert len(outputs) >= 4
 
 
 def test_contract_suite_covers_all_bench_tasks():

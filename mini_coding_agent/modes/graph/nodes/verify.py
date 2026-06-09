@@ -1,13 +1,15 @@
-"""verify 节点：pytest（含 tests/ 时）或 py_compile。"""
+"""verify 节点：与 eval 终判共用 run_workspace_verify。"""
 
-import py_compile
 from pathlib import Path
 
 from mini_coding_agent.modes.graph.types import HarnessContext, NodeResult
 from mini_coding_agent.modes.graph.verify_rules import (
     check_generate_did_not_touch_tests,
     check_tests_snapshot_unchanged,
+    lock_tests_enabled,
     resolve_test_command,
+    run_workspace_verify,
+    workspace_has_tests,
 )
 
 
@@ -15,64 +17,39 @@ def run_verify(ctx: HarnessContext) -> NodeResult:
     agent = ctx.agent
     root = Path(agent.root)
 
-    generate = ctx.node_outputs.get("generate")
-    gen_path = generate.data.get("path") if generate else None
-    lock_err = check_generate_did_not_touch_tests(gen_path)
-    if lock_err:
-        return NodeResult(ok=False, message=lock_err, data={"method": "lock_tests"})
+    if lock_tests_enabled():
+        generate = ctx.node_outputs.get("generate")
+        gen_path = generate.data.get("path") if generate else None
+        lock_err = check_generate_did_not_touch_tests(gen_path)
+        if lock_err:
+            return NodeResult(ok=False, message=lock_err, data={"method": "lock_tests"})
 
-    lock_err = check_tests_snapshot_unchanged(root, ctx.test_baseline)
-    if lock_err:
-        return NodeResult(ok=False, message=lock_err, data={"method": "lock_tests"})
+        lock_err = check_tests_snapshot_unchanged(root, ctx.test_baseline)
+        if lock_err:
+            return NodeResult(ok=False, message=lock_err, data={"method": "lock_tests"})
 
-    test_command = resolve_test_command(root, ctx.dag.slots.test_command)
-    if test_command:
-        return _run_test_command(ctx, test_command)
+    slots_cmd = getattr(ctx.dag.slots, "test_command", None) if ctx.dag.slots else None
+    err = run_workspace_verify(root, slots_test_command=slots_cmd)
+    method = _verify_method(root, slots_cmd)
 
-    return _run_py_compile(ctx)
+    if err:
+        return NodeResult(ok=False, message=err, data={"method": method})
 
-
-def _run_test_command(ctx: HarnessContext, command: str) -> NodeResult:
-    agent = ctx.agent
-    result = agent.run_tool("run_shell", {"command": command, "timeout": 60})
-    ok = result.startswith("exit_code: 0")
-    return NodeResult(
-        ok=ok,
-        message=result,
-        data={"method": "shell", "command": command},
-    )
-
-
-def _run_py_compile(ctx: HarnessContext) -> NodeResult:
-    agent = ctx.agent
-    paths = _modified_python_paths(ctx)
-    if not paths:
-        return NodeResult(ok=False, message="verify：未找到可编译的 Python 文件")
-
-    errors: list[str] = []
-    for rel in paths:
-        full = agent.root / rel
-        if not full.is_file() or full.suffix != ".py":
-            continue
-        try:
-            py_compile.compile(str(full), doraise=True)
-        except py_compile.PyCompileError as exc:
-            errors.append(f"{rel}: {exc}")
-
-    if errors:
-        return NodeResult(
-            ok=False,
-            message="py_compile 失败：\n" + "\n".join(errors),
-            data={"method": "py_compile", "paths": paths},
-        )
     return NodeResult(
         ok=True,
-        message=f"py_compile 通过：{', '.join(paths)}",
-        data={"method": "py_compile", "paths": paths},
+        message=f"verify 通过（{method}）",
+        data={"method": method},
     )
+
+
+def _verify_method(root: Path, slots_cmd: str | None) -> str:
+    if workspace_has_tests(root) or resolve_test_command(root, slots_cmd):
+        return "pytest"
+    return "py_compile"
 
 
 def _modified_python_paths(ctx: HarnessContext) -> list[str]:
+    """供 executor session 记录；保留兼容导入。"""
     generate = ctx.node_outputs.get("generate")
     if not generate:
         return []

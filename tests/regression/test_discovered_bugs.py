@@ -101,8 +101,7 @@ class TestBug_VerifyPytestNotPycompile:
         )
         result = run_verify(_verify_ctx(tmp_path))
         assert result.ok is False
-        assert result.data.get("method") == "shell"
-        assert result.data.get("command") == "python -m pytest -q"
+        assert result.data.get("method") == "pytest"
 
     def test_harness_e2e_wrong_fix_verify_fails(self, tmp_path):
         _setup_sum_task(tmp_path)

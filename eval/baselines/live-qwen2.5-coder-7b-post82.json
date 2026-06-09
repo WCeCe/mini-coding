@@ -1,9 +1,9 @@
 {
-  "saved_at": "2026-06-09T02:23:14.250147+00:00",
+  "saved_at": "2026-06-09T09:34:12.444876+00:00",
   "mode": "live",
   "model": "qwen2.5-coder:7b",
   "summary": {
-    "passed": 11,
+    "passed": 18,
     "total": 19
   },
   "tasks": [
@@ -21,8 +21,8 @@
         },
         "last_verify": {
           "ok": true,
-          "method": "py_compile",
-          "summary": "py_compile 通过：calc.py"
+          "method": "pytest",
+          "summary": "verify 通过（pytest）"
         },
         "harness_last_node": {
           "intent_id": "fix_bug",
@@ -32,7 +32,8 @@
         },
         "files_touched": [
           "calc.py",
-          "README.md"
+          "README.md",
+          "tests/test_calc.py"
         ],
         "open_fallback": false,
         "generate_attempts": 1,
@@ -53,10 +54,10 @@
           {
             "stage": "rig",
             "output": {
-              "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-nameerror_calc-mzz_q4f0\\.mini-coding-agent\\rig.db",
-              "files": 1,
-              "symbols": 1,
-              "imports": 0,
+              "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-nameerror_calc-jvl5y0cl\\.mini-coding-agent\\rig.db",
+              "files": 2,
+              "symbols": 2,
+              "imports": 1,
               "built": true
             }
           },
@@ -74,7 +75,8 @@
               "symbols_hint": [
                 "c",
                 "add"
-              ]
+              ],
+              "test_command": "python -m pytest -q"
             }
           },
           {
@@ -88,19 +90,24 @@
                 "symbols_hint": [
                   "c",
                   "add"
-                ]
+                ],
+                "test_command": "python -m pytest -q"
               }
             },
             "output": {
               "ok": true,
-              "message": "定位完成（rig+回退）：2 个文件",
+              "message": "定位完成（rig+回退）：3 个文件",
               "files": [
                 "calc.py",
-                "README.md"
+                "README.md",
+                "tests/test_calc.py"
               ],
               "snippets": [
                 "# search: c\n# file: calc.py L1-L12\n   1: def add(a, b):\n   2:     return a + c",
-                "# search: c\n# file: README.md L1-L11\n   1: eval workspace"
+                "# search: c\n# file: README.md L1-L11\n   1: eval workspace",
+                "# search: c\n# file: tests/test_calc.py L1-L11\n   1: from calc import add\n   2: \n   3: def test_add():\n   4:     assert add(2, 3) == 5",
+                "# rig: test_add @ tests/test_calc.py:3\n# file: tests/test_calc.py L1-L14\n   1: from calc import add\n   2: \n   3: def test_add():\n   4:     assert add(2, 3) == 5",
+                "# rig: neighbor tests/test_calc.py\n# file: tests/test_calc.py L1-L120\n   1: from calc import add\n   2: \n   3: def test_add():\n   4:     assert add(2, 3) == 5"
               ],
               "used_rig": true,
               "symbols_hint": [
@@ -112,18 +119,18 @@
           {
             "stage": "generate",
             "input": {
-              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'calc.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"calc.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\nTraceback (most recent call last):\n  File \"calc.py\", line 2, in add\n    return a + c\nNameError: name 'c' is not defined\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\ndef add(a, b):\n    return a + c\n\n```\n\n定位上下文：\n\n# search: c\n# file: calc.py L1-L12\n   1: def add(a, b):\n   2:     return a + c\n\n# search: c\n# file: README.md L1-L11\n   1: eval workspace",
+              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'calc.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"calc.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\nTraceback (most recent call last):\n  File \"calc.py\", line 2, in add\n    return a + c\nNameError: name 'c' is not defined\n\n测试规格（必须满足；禁止修改 tests/ 下文件；以 assert 为准，勿擅自改语义）：\n- assert add(2, 3) == 5\n- assert add(2, 3) == 5\n- assert add(2, 3) == 5\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\ndef add(a, b):\n    return a + c\n\n```\n\n定位上下文：\n\n# search: c\n# file: calc.py L1-L12\n   1: def add(a, b):\n   2:     return a + c\n\n# search: c\n# file: README.md L1-L11\n   1: eval workspace\n\n# search: c\n# file: tests/test_calc.py L1-L11\n   1: from calc import add\n   2: \n   3: def test_add():\n   4:     assert add(2, 3) == 5\n\n# rig: test_add @ tests/test_calc.py:3\n# file: tests/test_calc.py L1-L14\n   1: from calc import add\n   2: \n   3: def test_add():\n   4:     assert add(2, 3) == 5\n\n# rig: neighbor tests/test_calc.py\n# file: tests/test_calc.py L1-L120\n   1: from calc import add\n   2: \n   3: def test_add():\n   4:     assert add(2, 3) == 5",
               "attempt": 0
             },
             "output": {
-              "raw": "```\ndef add(a, b):\n    return a + b\n```",
+              "raw": "```\n<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"calc.py\",\"new_text\":\"def add(a, b):\\n    return a + b\\n\"}}</tool>\n```",
               "ok": true,
               "message": "已修补 calc.py",
               "tool": "patch_file",
               "args": {
                 "path": "calc.py",
                 "old_text": "def add(a, b):\n    return a + c\n",
-                "new_text": "def add(a, b):\n    return a + b"
+                "new_text": "def add(a, b):\n    return a + b\n"
               },
               "path": "calc.py"
             },
@@ -139,12 +146,9 @@
             },
             "output": {
               "ok": true,
-              "message": "py_compile 通过：calc.py",
+              "message": "verify 通过（pytest）",
               "data": {
-                "method": "py_compile",
-                "paths": [
-                  "calc.py"
-                ]
+                "method": "pytest"
               }
             }
           }
@@ -152,7 +156,7 @@
       },
       "failure_step": null,
       "reason": null,
-      "elapsed_ms": 151394.7,
+      "elapsed_ms": 100551.0,
       "steps": [
         {
           "step": "locate",
@@ -176,14 +180,14 @@
         }
       ],
       "tier": "easy",
-      "grading": "exact"
+      "grading": "tests_only"
     },
     {
       "task_id": "syntaxerror_paren",
-      "passed": false,
+      "passed": true,
       "pipeline_ok": null,
-      "outcome_ok": false,
-      "failure_type": "expect_files",
+      "outcome_ok": true,
+      "failure_type": "outcome_ok",
       "observability": {
         "gate": {
           "intent_id": "fix_bug",
@@ -192,8 +196,8 @@
         },
         "last_verify": {
           "ok": true,
-          "method": "py_compile",
-          "summary": "py_compile 通过：calc.py"
+          "method": "pytest",
+          "summary": "verify 通过（pytest）"
         },
         "harness_last_node": {
           "intent_id": "fix_bug",
@@ -202,7 +206,8 @@
           "ok": true
         },
         "files_touched": [
-          "calc.py"
+          "calc.py",
+          "tests/test_calc.py"
         ],
         "open_fallback": false,
         "generate_attempts": 1,
@@ -223,10 +228,10 @@
           {
             "stage": "rig",
             "output": {
-              "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-syntaxerror_paren-x4bexk9d\\.mini-coding-agent\\rig.db",
-              "files": 1,
-              "symbols": 0,
-              "imports": 0,
+              "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-syntaxerror_paren-aq_o8uht\\.mini-coding-agent\\rig.db",
+              "files": 2,
+              "symbols": 1,
+              "imports": 1,
               "built": true
             }
           },
@@ -241,7 +246,8 @@
               "files_hint": [
                 "calc.py"
               ],
-              "symbols_hint": []
+              "symbols_hint": [],
+              "test_command": "python -m pytest -q"
             }
           },
           {
@@ -252,37 +258,41 @@
                 "files_hint": [
                   "calc.py"
                 ],
-                "symbols_hint": []
+                "symbols_hint": [],
+                "test_command": "python -m pytest -q"
               }
             },
             "output": {
               "ok": true,
-              "message": "定位完成（hint+search）：1 个文件",
+              "message": "定位完成（rig+回退）：2 个文件",
               "files": [
+                "tests/test_calc.py",
                 "calc.py"
               ],
               "snippets": [
+                "# rig: test_add @ tests/test_calc.py:3\n# file: tests/test_calc.py L1-L14\n   1: from calc import add\n   2: \n   3: def test_add():\n   4:     assert add(1, 2) == 3",
+                "# rig: neighbor tests/test_calc.py\n# file: tests/test_calc.py L1-L120\n   1: from calc import add\n   2: \n   3: def test_add():\n   4:     assert add(1, 2) == 3",
                 "# file: calc.py L1-L120\n   1: def add(a, b):\n   2:     return (a + b"
               ],
-              "used_rig": false,
+              "used_rig": true,
               "symbols_hint": []
             }
           },
           {
             "stage": "generate",
             "input": {
-              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'calc.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"calc.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\nFile \"calc.py\", line 2\n    return (a + b\n              ^\nSyntaxError: '(' was never closed\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\ndef add(a, b):\n    return (a + b\n\n```\n\n定位上下文：\n\n# file: calc.py L1-L120\n   1: def add(a, b):\n   2:     return (a + b",
+              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'calc.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"calc.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\nFile \"calc.py\", line 2\n    return (a + b\n              ^\nSyntaxError: '(' was never closed\n\n语法修复提示：补全缺失的括号、冒号或引号，使代码可编译；保持原函数计算语义（如加法/比较），仅修语法结构。\n\n测试规格（必须满足；禁止修改 tests/ 下文件；以 assert 为准，勿擅自改语义）：\n- assert add(1, 2) == 3\n- assert add(1, 2) == 3\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\ndef add(a, b):\n    return (a + b\n\n```\n\n定位上下文：\n\n# rig: test_add @ tests/test_calc.py:3\n# file: tests/test_calc.py L1-L14\n   1: from calc import add\n   2: \n   3: def test_add():\n   4:     assert add(1, 2) == 3\n\n# rig: neighbor tests/test_calc.py\n# file: tests/test_calc.py L1-L120\n   1: from calc import add\n   2: \n   3: def test_add():\n   4:     assert add(1, 2) == 3\n\n# file: calc.py L1-L120\n   1: def add(a, b):\n   2:     return (a + b",
               "attempt": 0
             },
             "output": {
-              "raw": "<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"calc.py\",\"new_text\":\"def add(a, b):\\n    return a + b\\n\"}}</tool>",
+              "raw": "```\ndef add(a, b):\n    return (a + b)\n```",
               "ok": true,
               "message": "已修补 calc.py",
               "tool": "patch_file",
               "args": {
                 "path": "calc.py",
                 "old_text": "def add(a, b):\n    return (a + b\n",
-                "new_text": "def add(a, b):\n    return a + b\n"
+                "new_text": "def add(a, b):\n    return (a + b)"
               },
               "path": "calc.py"
             },
@@ -298,20 +308,17 @@
             },
             "output": {
               "ok": true,
-              "message": "py_compile 通过：calc.py",
+              "message": "verify 通过（pytest）",
               "data": {
-                "method": "py_compile",
-                "paths": [
-                  "calc.py"
-                ]
+                "method": "pytest"
               }
             }
           }
         ]
       },
-      "failure_step": "expect_files",
-      "reason": "calc.py 内容与期望不符",
-      "elapsed_ms": 55419.8,
+      "failure_step": null,
+      "reason": null,
+      "elapsed_ms": 58063.1,
       "steps": [
         {
           "step": "locate",
@@ -329,20 +336,20 @@
           "detail": "[harness] fix_bug 3/3 verify ok"
         },
         {
-          "step": "expect_files",
-          "status": "fail",
-          "detail": "calc.py 内容与期望不符"
+          "step": "post_check",
+          "status": "ok",
+          "detail": "终判通过"
         }
       ],
       "tier": "easy",
-      "grading": "exact"
+      "grading": "tests_only"
     },
     {
       "task_id": "nameerror_greet",
-      "passed": false,
+      "passed": true,
       "pipeline_ok": null,
-      "outcome_ok": false,
-      "failure_type": "verify_pytest",
+      "outcome_ok": true,
+      "failure_type": "outcome_ok",
       "observability": {
         "gate": {
           "intent_id": "fix_bug",
@@ -350,22 +357,22 @@
           "route": "harness_pipeline"
         },
         "last_verify": {
-          "ok": false,
-          "method": "shell",
-          "summary": "exit_code: 1\nstdout:\nF                                                                        [100%]\n================================== FAILURES ===================================\n_________________________________ test_\n...[已截断 422 字符]"
+          "ok": true,
+          "method": "pytest",
+          "summary": "verify 通过（pytest）"
         },
         "harness_last_node": {
           "intent_id": "fix_bug",
           "node_id": "verify",
           "type": "verify",
-          "ok": false
+          "ok": true
         },
         "files_touched": [
           "greet.py",
           "tests/test_greet.py"
         ],
         "open_fallback": false,
-        "generate_attempts": 3,
+        "generate_attempts": 1,
         "stage_trace": [
           {
             "stage": "gate",
@@ -383,7 +390,7 @@
           {
             "stage": "rig",
             "output": {
-              "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-nameerror_greet-jd_wt5ix\\.mini-coding-agent\\rig.db",
+              "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-nameerror_greet-3horhgz2\\.mini-coding-agent\\rig.db",
               "files": 2,
               "symbols": 2,
               "imports": 1,
@@ -442,18 +449,18 @@
           {
             "stage": "generate",
             "input": {
-              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'greet.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"greet.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\npytest 失败：tests/test_greet.py::test_greet — NameError: name 'msg' is not defined\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\ndef greet(name):\n    return msg\n\n```\n\n定位上下文：\n\n# search: msg\n# file: greet.py L1-L12\n   1: def greet(name):\n   2:     return msg\n\n# rig: test_greet @ tests/test_greet.py:3\n# file: tests/test_greet.py L1-L15\n   1: from greet import greet\n   2: \n   3: def test_greet():\n   4:     assert greet(\"Ada\") == \"Ada\"\n   5:     assert greet(\"Bob\") == \"Bob\"\n\n# rig: neighbor greet.py\n# file: greet.py L1-L120\n   1: def greet(name):\n   2:     return msg",
+              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'greet.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"greet.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\npytest 失败：tests/test_greet.py::test_greet — NameError: name 'msg' is not defined\n\n测试规格（必须满足；禁止修改 tests/ 下文件；以 assert 为准，勿擅自改语义）：\n- assert greet(\"Ada\") == \"Ada\"\n- assert greet(\"Bob\") == \"Bob\"\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\ndef greet(name):\n    return msg\n\n```\n\n定位上下文：\n\n# search: msg\n# file: greet.py L1-L12\n   1: def greet(name):\n   2:     return msg\n\n# rig: test_greet @ tests/test_greet.py:3\n# file: tests/test_greet.py L1-L15\n   1: from greet import greet\n   2: \n   3: def test_greet():\n   4:     assert greet(\"Ada\") == \"Ada\"\n   5:     assert greet(\"Bob\") == \"Bob\"\n\n# rig: neighbor greet.py\n# file: greet.py L1-L120\n   1: def greet(name):\n   2:     return msg",
               "attempt": 0
             },
             "output": {
-              "raw": "<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"greet.py\",\"new_text\":\"def greet(name):\\n    return f'Hello, {name}'\\n\"}}</tool>",
+              "raw": "<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"greet.py\",\"new_text\":\"def greet(name):\\n    return name\\n\"}}</tool>",
               "ok": true,
               "message": "已修补 greet.py",
               "tool": "patch_file",
               "args": {
                 "path": "greet.py",
                 "old_text": "def greet(name):\n    return msg\n",
-                "new_text": "def greet(name):\n    return f'Hello, {name}'\n"
+                "new_text": "def greet(name):\n    return name\n"
               },
               "path": "greet.py"
             },
@@ -468,93 +475,18 @@
               "generate_attempt": 0
             },
             "output": {
-              "ok": false,
-              "message": "exit_code: 1\nstdout:\nF                                                                        [100%]\n================================== FAILURES ===================================\n_________________________________ test_greet __________________________________\n\n    def test_greet():\n>       assert greet(\"Ada\") == \"Ada\"\nE       AssertionError: assert 'Hello, Ada' == 'Ada'\nE         - Ada\nE         + Hello, Ada\n\ntests\\test_greet.py:4: AssertionError\n=========================== short test summary info ===========================\nFAILED tests/test_greet.py::test_greet - AssertionError: assert 'Hello, Ada' ...\n1 failed in 0.45s\nstderr:\n（空）",
-              "data": {
-                "method": "shell",
-                "command": "python -m pytest -q"
-              }
-            }
-          },
-          {
-            "stage": "generate",
-            "input": {
-              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'greet.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"greet.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\npytest 失败：tests/test_greet.py::test_greet — NameError: name 'msg' is not defined\n\n上次失败，请修正：\nE         - Ada\nE         + Hello, Ada\ntests\\test_greet.py:4: AssertionError\n=========================== short test summary info ===========================\nFAILED tests/test_greet.py::test_greet - AssertionError: assert 'Hello, Ada' ...\n1 failed in 0.45s\nstderr:\n（空）\n（第 2 次 generate 尝试）\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\ndef greet(name):\n    return f'Hello, {name}'\n\n```\n\n定位上下文：\n\n# search: msg\n# file: greet.py L1-L12\n   1: def greet(name):\n   2:     return msg\n\n# rig: test_greet @ tests/test_greet.py:3\n# file: tests/test_greet.py L1-L15\n   1: from greet import greet\n   2: \n   3: def test_greet():\n   4:     assert greet(\"Ada\") == \"Ada\"\n   5:     assert greet(\"Bob\") == \"Bob\"\n\n# rig: neighbor greet.py\n# file: greet.py L1-L120\n   1: def greet(name):\n   2:     return msg",
-              "attempt": 1
-            },
-            "output": {
-              "raw": "```\ndef greet(name):\n    return f'Hello, {name}'\n```",
               "ok": true,
-              "message": "已修补 greet.py",
-              "tool": "patch_file",
-              "args": {
-                "path": "greet.py",
-                "old_text": "def greet(name):\n    return f'Hello, {name}'\n",
-                "new_text": "def greet(name):\n    return f'Hello, {name}'"
-              },
-              "path": "greet.py"
-            },
-            "meta": {
-              "intent_id": "fix_bug"
-            }
-          },
-          {
-            "stage": "verify",
-            "input": {
-              "intent_id": "fix_bug",
-              "generate_attempt": 1
-            },
-            "output": {
-              "ok": false,
-              "message": "exit_code: 1\nstdout:\nF                                                                        [100%]\n================================== FAILURES ===================================\n_________________________________ test_greet __________________________________\n\n    def test_greet():\n>       assert greet(\"Ada\") == \"Ada\"\nE       AssertionError: assert 'Hello, Ada' == 'Ada'\nE         - Ada\nE         + Hello, Ada\n\ntests\\test_greet.py:4: AssertionError\n=========================== short test summary info ===========================\nFAILED tests/test_greet.py::test_greet - AssertionError: assert 'Hello, Ada' ...\n1 failed in 0.35s\nstderr:\n（空）",
+              "message": "verify 通过（pytest）",
               "data": {
-                "method": "shell",
-                "command": "python -m pytest -q"
-              }
-            }
-          },
-          {
-            "stage": "generate",
-            "input": {
-              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'greet.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"greet.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\npytest 失败：tests/test_greet.py::test_greet — NameError: name 'msg' is not defined\n\n上次失败，请修正：\nE         - Ada\nE         + Hello, Ada\ntests\\test_greet.py:4: AssertionError\n=========================== short test summary info ===========================\nFAILED tests/test_greet.py::test_greet - AssertionError: assert 'Hello, Ada' ...\n1 failed in 0.35s\nstderr:\n（空）\n（第 3 次 generate 尝试）\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\ndef greet(name):\n    return f'Hello, {name}'\n\n```\n\n定位上下文：\n\n# search: msg\n# file: greet.py L1-L12\n   1: def greet(name):\n   2:     return msg\n\n# rig: test_greet @ tests/test_greet.py:3\n# file: tests/test_greet.py L1-L15\n   1: from greet import greet\n   2: \n   3: def test_greet():\n   4:     assert greet(\"Ada\") == \"Ada\"\n   5:     assert greet(\"Bob\") == \"Bob\"\n\n# rig: neighbor greet.py\n# file: greet.py L1-L120\n   1: def greet(name):\n   2:     return msg",
-              "attempt": 2
-            },
-            "output": {
-              "raw": "```\ndef greet(name):\n    return f'Hello, {name}'\n```",
-              "ok": true,
-              "message": "已修补 greet.py",
-              "tool": "patch_file",
-              "args": {
-                "path": "greet.py",
-                "old_text": "def greet(name):\n    return f'Hello, {name}'\n",
-                "new_text": "def greet(name):\n    return f'Hello, {name}'"
-              },
-              "path": "greet.py"
-            },
-            "meta": {
-              "intent_id": "fix_bug"
-            }
-          },
-          {
-            "stage": "verify",
-            "input": {
-              "intent_id": "fix_bug",
-              "generate_attempt": 2
-            },
-            "output": {
-              "ok": false,
-              "message": "exit_code: 1\nstdout:\nF                                                                        [100%]\n================================== FAILURES ===================================\n_________________________________ test_greet __________________________________\n\n    def test_greet():\n>       assert greet(\"Ada\") == \"Ada\"\nE       AssertionError: assert 'Hello, Ada' == 'Ada'\nE         - Ada\nE         + Hello, Ada\n\ntests\\test_greet.py:4: AssertionError\n=========================== short test summary info ===========================\nFAILED tests/test_greet.py::test_greet - AssertionError: assert 'Hello, Ada' ...\n1 failed in 0.24s\nstderr:\n（空）",
-              "data": {
-                "method": "shell",
-                "command": "python -m pytest -q"
+                "method": "pytest"
               }
             }
           }
         ]
       },
-      "failure_step": "verify",
-      "reason": "pytest 失败（exit 1）：F                                                                        [100%]\n================================== FAILURES ===================================\n_________________________________ test_greet __________________________________\n\n    def test_greet():\n>       assert greet(\"Ada\") == \"Ada\"\nE       AssertionError: assert 'Hello, Ada' == 'Ada'\nE         - Ada\nE         + Hello, Ada\n\nC:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-nameerror_greet-jd_wt5ix\\tests\\test_greet.py:4: AssertionError\n=",
-      "elapsed_ms": 150990.3,
+      "failure_step": null,
+      "reason": null,
+      "elapsed_ms": 62122.1,
       "steps": [
         {
           "step": "locate",
@@ -568,33 +500,13 @@
         },
         {
           "step": "verify",
-          "status": "fail",
-          "detail": "[harness] fix_bug 3/3 verify fail"
-        },
-        {
-          "step": "generate",
           "status": "ok",
-          "detail": "[harness] fix_bug 4/3 generate ok"
+          "detail": "[harness] fix_bug 3/3 verify ok"
         },
         {
-          "step": "verify",
-          "status": "fail",
-          "detail": "[harness] fix_bug 5/3 verify fail"
-        },
-        {
-          "step": "generate",
+          "step": "post_check",
           "status": "ok",
-          "detail": "[harness] fix_bug 6/3 generate ok"
-        },
-        {
-          "step": "verify",
-          "status": "fail",
-          "detail": "[harness] fix_bug 7/3 verify fail"
-        },
-        {
-          "step": "verify",
-          "status": "fail",
-          "detail": "pytest 失败（exit 1）：F                                                                        [100%]\n================================== FAILURES ===================================\n_________________________________ test_greet __________________________________\n\n    def test_greet():\n>       assert gree"
+          "detail": "终判通过"
         }
       ],
       "tier": "easy",
@@ -614,8 +526,8 @@
         },
         "last_verify": {
           "ok": true,
-          "method": "shell",
-          "summary": "exit_code: 0\nstdout:\n.                                                                        [100%]\n1 passed in 0.04s\nstderr:\n（空）"
+          "method": "pytest",
+          "summary": "verify 通过（pytest）"
         },
         "harness_last_node": {
           "intent_id": "fix_bug",
@@ -646,7 +558,7 @@
           {
             "stage": "rig",
             "output": {
-              "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-off_by_one_sum-4j664no1\\.mini-coding-agent\\rig.db",
+              "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-off_by_one_sum-arwc_li5\\.mini-coding-agent\\rig.db",
               "files": 2,
               "symbols": 2,
               "imports": 1,
@@ -705,18 +617,18 @@
           {
             "stage": "generate",
             "input": {
-              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'sum_first.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"sum_first.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\npytest 失败：tests/test_sum.py::test_sum_first — assert sum_first(3) == 6，实际得到 3\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\ndef sum_first(n):\n    s = 0\n    for i in range(1, n):\n        s += i\n    return s\n\n```\n\n定位上下文：\n\n# rig: sum_first (function) @ sum_first.py:1\n# file: sum_first.py L1-L15\n   1: def sum_first(n):\n   2:     s = 0\n   3:     for i in range(1, n):\n   4:         s += i\n   5:     return s\n\n# rig: test_sum_first @ tests/test_sum.py:3\n# file: tests/test_sum.py L1-L14\n   1: from sum_first import sum_first\n   2: \n   3: def test_sum_first():\n   4:     assert sum_first(3) == 6\n\n# rig: neighbor sum_first.py\n# file: sum_first.py L1-L120\n   1: def sum_first(n):\n   2:     s = 0\n   3:     for i in range(1, n):\n   4:         s += i\n   5:     return s",
+              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'sum_first.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"sum_first.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\npytest 失败：tests/test_sum.py::test_sum_first — assert sum_first(3) == 6，实际得到 3\n\n测试规格（必须满足；禁止修改 tests/ 下文件；以 assert 为准，勿擅自改语义）：\n- assert sum_first(3) == 6\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\ndef sum_first(n):\n    s = 0\n    for i in range(1, n):\n        s += i\n    return s\n\n```\n\n定位上下文：\n\n# rig: sum_first (function) @ sum_first.py:1\n# file: sum_first.py L1-L15\n   1: def sum_first(n):\n   2:     s = 0\n   3:     for i in range(1, n):\n   4:         s += i\n   5:     return s\n\n# rig: test_sum_first @ tests/test_sum.py:3\n# file: tests/test_sum.py L1-L14\n   1: from sum_first import sum_first\n   2: \n   3: def test_sum_first():\n   4:     assert sum_first(3) == 6\n\n# rig: neighbor sum_first.py\n# file: sum_first.py L1-L120\n   1: def sum_first(n):\n   2:     s = 0\n   3:     for i in range(1, n):\n   4:         s += i\n   5:     return s",
               "attempt": 0
             },
             "output": {
-              "raw": "```\ndef sum_first(n):\n    s = 0\n    for i in range(1, n + 1):\n        s += i\n    return s\n```",
+              "raw": "```\ndef sum_first(n):\n    s = 0\n    for i in range(1, n + 1):  # 修改为 n + 1\n        s += i\n    return s\n```",
               "ok": true,
               "message": "已修补 sum_first.py",
               "tool": "patch_file",
               "args": {
                 "path": "sum_first.py",
                 "old_text": "def sum_first(n):\n    s = 0\n    for i in range(1, n):\n        s += i\n    return s\n",
-                "new_text": "def sum_first(n):\n    s = 0\n    for i in range(1, n + 1):\n        s += i\n    return s"
+                "new_text": "def sum_first(n):\n    s = 0\n    for i in range(1, n + 1):  # 修改为 n + 1\n        s += i\n    return s"
               },
               "path": "sum_first.py"
             },
@@ -732,10 +644,9 @@
             },
             "output": {
               "ok": true,
-              "message": "exit_code: 0\nstdout:\n.                                                                        [100%]\n1 passed in 0.04s\nstderr:\n（空）",
+              "message": "verify 通过（pytest）",
               "data": {
-                "method": "shell",
-                "command": "python -m pytest -q"
+                "method": "pytest"
               }
             }
           }
@@ -743,7 +654,7 @@
       },
       "failure_step": null,
       "reason": null,
-      "elapsed_ms": 69495.0,
+      "elapsed_ms": 75355.8,
       "steps": [
         {
           "step": "locate",
@@ -783,8 +694,8 @@
         },
         "last_verify": {
           "ok": true,
-          "method": "py_compile",
-          "summary": "py_compile 通过：calc.py"
+          "method": "pytest",
+          "summary": "verify 通过（pytest）"
         },
         "harness_last_node": {
           "intent_id": "fix_bug",
@@ -793,7 +704,8 @@
           "ok": true
         },
         "files_touched": [
-          "calc.py"
+          "calc.py",
+          "tests/test_calc.py"
         ],
         "open_fallback": false,
         "generate_attempts": 1,
@@ -808,16 +720,16 @@
               "intent_id": "fix_bug",
               "confidence": "high",
               "route": "harness_pipeline",
-              "raw": "```json\n{\n  \"intent_id\": \"fix_bug\",\n  \"confidence\": \"high\",\n  \"skill\": null\n}\n```"
+              "raw": "{\n  \"intent_id\": \"fix_bug\",\n  \"confidence\": \"high\",\n  \"skill\": null\n}"
             }
           },
           {
             "stage": "rig",
             "output": {
-              "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-wrong_operator_calc-vgb_ievm\\.mini-coding-agent\\rig.db",
-              "files": 1,
-              "symbols": 1,
-              "imports": 0,
+              "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-wrong_operator_calc-q468l7se\\.mini-coding-agent\\rig.db",
+              "files": 2,
+              "symbols": 2,
+              "imports": 1,
               "built": true
             }
           },
@@ -834,7 +746,8 @@
               ],
               "symbols_hint": [
                 "add"
-              ]
+              ],
+              "test_command": "python -m pytest -q"
             }
           },
           {
@@ -847,17 +760,21 @@
                 ],
                 "symbols_hint": [
                   "add"
-                ]
+                ],
+                "test_command": "python -m pytest -q"
               }
             },
             "output": {
               "ok": true,
-              "message": "定位完成（rig+回退）：1 个文件",
+              "message": "定位完成（rig+回退）：2 个文件",
               "files": [
-                "calc.py"
+                "calc.py",
+                "tests/test_calc.py"
               ],
               "snippets": [
-                "# rig: add (function) @ calc.py:1\n# file: calc.py L1-L12\n   1: def add(a, b):\n   2:     return a - b"
+                "# rig: add (function) @ calc.py:1\n# file: calc.py L1-L12\n   1: def add(a, b):\n   2:     return a - b",
+                "# rig: test_add @ tests/test_calc.py:3\n# file: tests/test_calc.py L1-L14\n   1: from calc import add\n   2: \n   3: def test_add():\n   4:     assert add(2, 3) == 5",
+                "# rig: neighbor tests/test_calc.py\n# file: tests/test_calc.py L1-L120\n   1: from calc import add\n   2: \n   3: def test_add():\n   4:     assert add(2, 3) == 5"
               ],
               "used_rig": true,
               "symbols_hint": [
@@ -868,18 +785,18 @@
           {
             "stage": "generate",
             "input": {
-              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'calc.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"calc.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\ncalc.add(2, 3) 返回 -1，应为 5；请修复 calc.py\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\ndef add(a, b):\n    return a - b\n\n```\n\n定位上下文：\n\n# rig: add (function) @ calc.py:1\n# file: calc.py L1-L12\n   1: def add(a, b):\n   2:     return a - b",
+              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'calc.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"calc.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\ncalc.add(2, 3) 返回 -1，应为 5；请修复 calc.py\n\n测试规格（必须满足；禁止修改 tests/ 下文件；以 assert 为准，勿擅自改语义）：\n- assert add(2, 3) == 5\n- assert add(2, 3) == 5\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\ndef add(a, b):\n    return a - b\n\n```\n\n定位上下文：\n\n# rig: add (function) @ calc.py:1\n# file: calc.py L1-L12\n   1: def add(a, b):\n   2:     return a - b\n\n# rig: test_add @ tests/test_calc.py:3\n# file: tests/test_calc.py L1-L14\n   1: from calc import add\n   2: \n   3: def test_add():\n   4:     assert add(2, 3) == 5\n\n# rig: neighbor tests/test_calc.py\n# file: tests/test_calc.py L1-L120\n   1: from calc import add\n   2: \n   3: def test_add():\n   4:     assert add(2, 3) == 5",
               "attempt": 0
             },
             "output": {
-              "raw": "<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"calc.py\",\"new_text\":\"def add(a, b):\\n    return a + b\\n\"}}</tool>",
+              "raw": "```\ndef add(a, b):\n    return a + b\n\n```",
               "ok": true,
               "message": "已修补 calc.py",
               "tool": "patch_file",
               "args": {
                 "path": "calc.py",
                 "old_text": "def add(a, b):\n    return a - b\n",
-                "new_text": "def add(a, b):\n    return a + b\n"
+                "new_text": "def add(a, b):\n    return a + b"
               },
               "path": "calc.py"
             },
@@ -895,12 +812,9 @@
             },
             "output": {
               "ok": true,
-              "message": "py_compile 通过：calc.py",
+              "message": "verify 通过（pytest）",
               "data": {
-                "method": "py_compile",
-                "paths": [
-                  "calc.py"
-                ]
+                "method": "pytest"
               }
             }
           }
@@ -908,7 +822,7 @@
       },
       "failure_step": null,
       "reason": null,
-      "elapsed_ms": 49825.3,
+      "elapsed_ms": 57209.0,
       "steps": [
         {
           "step": "locate",
@@ -932,7 +846,7 @@
         }
       ],
       "tier": "easy",
-      "grading": "exact"
+      "grading": "tests_only"
     },
     {
       "task_id": "importerror_sqrt",
@@ -948,8 +862,8 @@
         },
         "last_verify": {
           "ok": true,
-          "method": "shell",
-          "summary": "exit_code: 0\nstdout:\n.                                                                        [100%]\n1 passed in 0.05s\nstderr:\n（空）"
+          "method": "pytest",
+          "summary": "verify 通过（pytest）"
         },
         "harness_last_node": {
           "intent_id": "fix_bug",
@@ -980,7 +894,7 @@
           {
             "stage": "rig",
             "output": {
-              "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-importerror_sqrt-axdxnvho\\.mini-coding-agent\\rig.db",
+              "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-importerror_sqrt-0ir0tphg\\.mini-coding-agent\\rig.db",
               "files": 2,
               "symbols": 2,
               "imports": 2,
@@ -1039,11 +953,11 @@
           {
             "stage": "generate",
             "input": {
-              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'sqrt_fn.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"sqrt_fn.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\nTraceback (most recent call last):\n  File \"sqrt_fn.py\", line 1, in <module>\n    from math import sqr\nImportError: cannot import name 'sqr' from 'math'\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\nfrom math import sqr\n\ndef root(x):\n    return sqr(x)\n\n```\n\n定位上下文：\n\n# search: math\n# file: sqrt_fn.py L1-L11\n   1: from math import sqr\n   2: \n   3: def root(x):\n   4:     return sqr(x)\n\n# rig: root @ sqrt_fn.py:3\n# file: sqrt_fn.py L1-L14\n   1: from math import sqr\n   2: \n   3: def root(x):\n   4:     return sqr(x)\n\n# rig: neighbor tests/test_sqrt.py\n# file: tests/test_sqrt.py L1-L120\n   1: from sqrt_fn import root\n   2: \n   3: def test_root():\n   4:     assert root(9) == 3",
+              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'sqrt_fn.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"sqrt_fn.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\nTraceback (most recent call last):\n  File \"sqrt_fn.py\", line 1, in <module>\n    from math import sqr\nImportError: cannot import name 'sqr' from 'math'\n\n测试规格（必须满足；禁止修改 tests/ 下文件；以 assert 为准，勿擅自改语义）：\n- assert root(9) == 3\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\nfrom math import sqr\n\ndef root(x):\n    return sqr(x)\n\n```\n\n定位上下文：\n\n# search: math\n# file: sqrt_fn.py L1-L11\n   1: from math import sqr\n   2: \n   3: def root(x):\n   4:     return sqr(x)\n\n# rig: root @ sqrt_fn.py:3\n# file: sqrt_fn.py L1-L14\n   1: from math import sqr\n   2: \n   3: def root(x):\n   4:     return sqr(x)\n\n# rig: neighbor tests/test_sqrt.py\n# file: tests/test_sqrt.py L1-L120\n   1: from sqrt_fn import root\n   2: \n   3: def test_root():\n   4:     assert root(9) == 3",
               "attempt": 0
             },
             "output": {
-              "raw": "<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"sqrt_fn.py\",\"new_text\":\"from math import sqrt\\n\\ndef root(x):\\n    return sqrt(x)\"}}</tool>",
+              "raw": "```\nfrom math import sqrt\n\ndef root(x):\n    return sqrt(x)\n```",
               "ok": true,
               "message": "已修补 sqrt_fn.py",
               "tool": "patch_file",
@@ -1066,10 +980,9 @@
             },
             "output": {
               "ok": true,
-              "message": "exit_code: 0\nstdout:\n.                                                                        [100%]\n1 passed in 0.05s\nstderr:\n（空）",
+              "message": "verify 通过（pytest）",
               "data": {
-                "method": "shell",
-                "command": "python -m pytest -q"
+                "method": "pytest"
               }
             }
           }
@@ -1077,7 +990,7 @@
       },
       "failure_step": null,
       "reason": null,
-      "elapsed_ms": 66600.1,
+      "elapsed_ms": 58994.0,
       "steps": [
         {
           "step": "locate",
@@ -1117,8 +1030,8 @@
         },
         "last_verify": {
           "ok": true,
-          "method": "shell",
-          "summary": "exit_code: 0\nstdout:\n.                                                                        [100%]\n1 passed in 0.04s\nstderr:\n（空）"
+          "method": "pytest",
+          "summary": "verify 通过（pytest）"
         },
         "harness_last_node": {
           "intent_id": "fix_bug",
@@ -1149,7 +1062,7 @@
           {
             "stage": "rig",
             "output": {
-              "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-missing_return_abs-vz5bor85\\.mini-coding-agent\\rig.db",
+              "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-missing_return_abs-48svpdff\\.mini-coding-agent\\rig.db",
               "files": 2,
               "symbols": 2,
               "imports": 1,
@@ -1208,7 +1121,7 @@
           {
             "stage": "generate",
             "input": {
-              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'abs_val.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"abs_val.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\npytest 失败：tests/test_abs.py::test_abs — assert abs_val(-3) == 3，实际得到 None\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\ndef abs_val(x):\n    if x < 0:\n        x = -x\n    pass\n\n```\n\n定位上下文：\n\n# rig: abs_val (function) @ abs_val.py:1\n# file: abs_val.py L1-L14\n   1: def abs_val(x):\n   2:     if x < 0:\n   3:         x = -x\n   4:     pass\n\n# rig: test_abs @ tests/test_abs.py:3\n# file: tests/test_abs.py L1-L15\n   1: from abs_val import abs_val\n   2: \n   3: def test_abs():\n   4:     assert abs_val(-3) == 3\n   5:     assert abs_val(5) == 5\n\n# rig: neighbor abs_val.py\n# file: abs_val.py L1-L120\n   1: def abs_val(x):\n   2:     if x < 0:\n   3:         x = -x\n   4:     pass",
+              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'abs_val.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"abs_val.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\npytest 失败：tests/test_abs.py::test_abs — assert abs_val(-3) == 3，实际得到 None\n\n测试规格（必须满足；禁止修改 tests/ 下文件；以 assert 为准，勿擅自改语义）：\n- assert abs_val(-3) == 3\n- assert abs_val(5) == 5\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\ndef abs_val(x):\n    if x < 0:\n        x = -x\n    pass\n\n```\n\n定位上下文：\n\n# rig: abs_val (function) @ abs_val.py:1\n# file: abs_val.py L1-L14\n   1: def abs_val(x):\n   2:     if x < 0:\n   3:         x = -x\n   4:     pass\n\n# rig: test_abs @ tests/test_abs.py:3\n# file: tests/test_abs.py L1-L15\n   1: from abs_val import abs_val\n   2: \n   3: def test_abs():\n   4:     assert abs_val(-3) == 3\n   5:     assert abs_val(5) == 5\n\n# rig: neighbor abs_val.py\n# file: abs_val.py L1-L120\n   1: def abs_val(x):\n   2:     if x < 0:\n   3:         x = -x\n   4:     pass",
               "attempt": 0
             },
             "output": {
@@ -1235,10 +1148,9 @@
             },
             "output": {
               "ok": true,
-              "message": "exit_code: 0\nstdout:\n.                                                                        [100%]\n1 passed in 0.04s\nstderr:\n（空）",
+              "message": "verify 通过（pytest）",
               "data": {
-                "method": "shell",
-                "command": "python -m pytest -q"
+                "method": "pytest"
               }
             }
           }
@@ -1246,7 +1158,7 @@
       },
       "failure_step": null,
       "reason": null,
-      "elapsed_ms": 74049.2,
+      "elapsed_ms": 79844.0,
       "steps": [
         {
           "step": "locate",
@@ -1274,10 +1186,10 @@
     },
     {
       "task_id": "wrong_comparison_max",
-      "passed": false,
+      "passed": true,
       "pipeline_ok": null,
-      "outcome_ok": false,
-      "failure_type": "expect_files",
+      "outcome_ok": true,
+      "failure_type": "outcome_ok",
       "observability": {
         "gate": {
           "intent_id": "fix_bug",
@@ -1286,8 +1198,8 @@
         },
         "last_verify": {
           "ok": true,
-          "method": "py_compile",
-          "summary": "py_compile 通过：maximum.py"
+          "method": "pytest",
+          "summary": "verify 通过（pytest）"
         },
         "harness_last_node": {
           "intent_id": "fix_bug",
@@ -1296,7 +1208,8 @@
           "ok": true
         },
         "files_touched": [
-          "maximum.py"
+          "maximum.py",
+          "tests/test_maximum.py"
         ],
         "open_fallback": false,
         "generate_attempts": 1,
@@ -1317,10 +1230,10 @@
           {
             "stage": "rig",
             "output": {
-              "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-wrong_comparison_max-h9d2mq4_\\.mini-coding-agent\\rig.db",
-              "files": 1,
-              "symbols": 1,
-              "imports": 0,
+              "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-wrong_comparison_max-k2191gfl\\.mini-coding-agent\\rig.db",
+              "files": 2,
+              "symbols": 2,
+              "imports": 1,
               "built": true
             }
           },
@@ -1337,7 +1250,8 @@
               ],
               "symbols_hint": [
                 "maximum"
-              ]
+              ],
+              "test_command": "python -m pytest -q"
             }
           },
           {
@@ -1350,17 +1264,21 @@
                 ],
                 "symbols_hint": [
                   "maximum"
-                ]
+                ],
+                "test_command": "python -m pytest -q"
               }
             },
             "output": {
               "ok": true,
-              "message": "定位完成（rig+回退）：1 个文件",
+              "message": "定位完成（rig+回退）：2 个文件",
               "files": [
-                "maximum.py"
+                "maximum.py",
+                "tests/test_maximum.py"
               ],
               "snippets": [
-                "# rig: maximum (function) @ maximum.py:1\n# file: maximum.py L1-L14\n   1: def maximum(a, b):\n   2:     if a < b:\n   3:         return a\n   4:     return b"
+                "# rig: maximum (function) @ maximum.py:1\n# file: maximum.py L1-L14\n   1: def maximum(a, b):\n   2:     if a < b:\n   3:         return a\n   4:     return b",
+                "# rig: test_maximum @ tests/test_maximum.py:3\n# file: tests/test_maximum.py L1-L15\n   1: from maximum import maximum\n   2: \n   3: def test_maximum():\n   4:     assert maximum(5, 3) == 5\n   5:     assert maximum(3, 5) == 5",
+                "# rig: neighbor tests/test_maximum.py\n# file: tests/test_maximum.py L1-L120\n   1: from maximum import maximum\n   2: \n   3: def test_maximum():\n   4:     assert maximum(5, 3) == 5\n   5:     assert maximum(3, 5) == 5"
               ],
               "used_rig": true,
               "symbols_hint": [
@@ -1371,7 +1289,7 @@
           {
             "stage": "generate",
             "input": {
-              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'maximum.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"maximum.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\nmaximum(5, 3) 返回 3，应为 5；请修复 maximum.py\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\ndef maximum(a, b):\n    if a < b:\n        return a\n    return b\n\n```\n\n定位上下文：\n\n# rig: maximum (function) @ maximum.py:1\n# file: maximum.py L1-L14\n   1: def maximum(a, b):\n   2:     if a < b:\n   3:         return a\n   4:     return b",
+              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'maximum.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"maximum.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\nmaximum(5, 3) 返回 3，应为 5；请修复 maximum.py\n\n测试规格（必须满足；禁止修改 tests/ 下文件；以 assert 为准，勿擅自改语义）：\n- assert maximum(5, 3) == 5\n- assert maximum(3, 5) == 5\n- assert maximum(5, 3) == 5\n- assert maximum(3, 5) == 5\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\ndef maximum(a, b):\n    if a < b:\n        return a\n    return b\n\n```\n\n定位上下文：\n\n# rig: maximum (function) @ maximum.py:1\n# file: maximum.py L1-L14\n   1: def maximum(a, b):\n   2:     if a < b:\n   3:         return a\n   4:     return b\n\n# rig: test_maximum @ tests/test_maximum.py:3\n# file: tests/test_maximum.py L1-L15\n   1: from maximum import maximum\n   2: \n   3: def test_maximum():\n   4:     assert maximum(5, 3) == 5\n   5:     assert maximum(3, 5) == 5\n\n# rig: neighbor tests/test_maximum.py\n# file: tests/test_maximum.py L1-L120\n   1: from maximum import maximum\n   2: \n   3: def test_maximum():\n   4:     assert maximum(5, 3) == 5\n   5:     assert maximum(3, 5) == 5",
               "attempt": 0
             },
             "output": {
@@ -1398,20 +1316,17 @@
             },
             "output": {
               "ok": true,
-              "message": "py_compile 通过：maximum.py",
+              "message": "verify 通过（pytest）",
               "data": {
-                "method": "py_compile",
-                "paths": [
-                  "maximum.py"
-                ]
+                "method": "pytest"
               }
             }
           }
         ]
       },
-      "failure_step": "expect_files",
-      "reason": "maximum.py 内容与期望不符",
-      "elapsed_ms": 44343.0,
+      "failure_step": null,
+      "reason": null,
+      "elapsed_ms": 68930.2,
       "steps": [
         {
           "step": "locate",
@@ -1429,20 +1344,20 @@
           "detail": "[harness] fix_bug 3/3 verify ok"
         },
         {
-          "step": "expect_files",
-          "status": "fail",
-          "detail": "maximum.py 内容与期望不符"
+          "step": "post_check",
+          "status": "ok",
+          "detail": "终判通过"
         }
       ],
       "tier": "easy",
-      "grading": "exact"
+      "grading": "tests_only"
     },
     {
       "task_id": "syntaxerror_colon",
-      "passed": false,
+      "passed": true,
       "pipeline_ok": null,
-      "outcome_ok": false,
-      "failure_type": "expect_files",
+      "outcome_ok": true,
+      "failure_type": "outcome_ok",
       "observability": {
         "gate": {
           "intent_id": "fix_bug",
@@ -1450,18 +1365,19 @@
           "route": "harness_pipeline"
         },
         "last_verify": {
-          "ok": false,
-          "method": null,
-          "summary": "generate 须返回 tool 调用，收到：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"adder.py\",\"new_text\":'def add(a, b):\\n    return a + b\\n'}}</tool>"
+          "ok": true,
+          "method": "pytest",
+          "summary": "verify 通过（pytest）"
         },
         "harness_last_node": {
           "intent_id": "fix_bug",
-          "node_id": "generate",
-          "type": "generate",
-          "ok": false
+          "node_id": "verify",
+          "type": "verify",
+          "ok": true
         },
         "files_touched": [
-          "adder.py"
+          "adder.py",
+          "tests/test_adder.py"
         ],
         "open_fallback": false,
         "generate_attempts": 1,
@@ -1476,16 +1392,16 @@
               "intent_id": "fix_bug",
               "confidence": "high",
               "route": "harness_pipeline",
-              "raw": "{\n  \"intent_id\": \"fix_bug\",\n  \"confidence\": \"high\"\n}"
+              "raw": "{\n  \"intent_id\": \"fix_bug\",\n  \"confidence\": \"high\",\n  \"skill\": null\n}"
             }
           },
           {
             "stage": "rig",
             "output": {
-              "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-syntaxerror_colon-e2t3m7_m\\.mini-coding-agent\\rig.db",
-              "files": 1,
-              "symbols": 0,
-              "imports": 0,
+              "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-syntaxerror_colon-120gzkos\\.mini-coding-agent\\rig.db",
+              "files": 2,
+              "symbols": 1,
+              "imports": 1,
               "built": true
             }
           },
@@ -1502,7 +1418,8 @@
               ],
               "symbols_hint": [
                 "add"
-              ]
+              ],
+              "test_command": "python -m pytest -q"
             }
           },
           {
@@ -1515,19 +1432,23 @@
                 ],
                 "symbols_hint": [
                   "add"
-                ]
+                ],
+                "test_command": "python -m pytest -q"
               }
             },
             "output": {
               "ok": true,
-              "message": "定位完成（hint+search）：1 个文件",
+              "message": "定位完成（rig+回退）：2 个文件",
               "files": [
-                "adder.py"
+                "adder.py",
+                "tests/test_adder.py"
               ],
               "snippets": [
-                "# search: add\n# file: adder.py L1-L11\n   1: def add(a, b)\n   2:     return a + b"
+                "# search: add\n# file: adder.py L1-L11\n   1: def add(a, b)\n   2:     return a + b",
+                "# search: add\n# file: tests/test_adder.py L1-L14\n   1: from adder import add\n   2: \n   3: def test_add():\n   4:     assert add(2, 3) == 5",
+                "# rig: neighbor tests/test_adder.py\n# file: tests/test_adder.py L1-L120\n   1: from adder import add\n   2: \n   3: def test_add():\n   4:     assert add(2, 3) == 5"
               ],
-              "used_rig": false,
+              "used_rig": true,
               "symbols_hint": [
                 "add"
               ]
@@ -1536,23 +1457,44 @@
           {
             "stage": "generate",
             "input": {
-              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'adder.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"adder.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\nFile \"adder.py\", line 1\n    def add(a, b)\n                 ^\nSyntaxError: expected ':'\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\ndef add(a, b)\n    return a + b\n\n```\n\n定位上下文：\n\n# search: add\n# file: adder.py L1-L11\n   1: def add(a, b)\n   2:     return a + b",
+              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'adder.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"adder.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\nFile \"adder.py\", line 1\n    def add(a, b)\n                 ^\nSyntaxError: expected ':'\n\n语法修复提示：补全缺失的括号、冒号或引号，使代码可编译；保持原函数计算语义（如加法/比较），仅修语法结构。\n\n测试规格（必须满足；禁止修改 tests/ 下文件；以 assert 为准，勿擅自改语义）：\n- assert add(2, 3) == 5\n- assert add(2, 3) == 5\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\ndef add(a, b)\n    return a + b\n\n```\n\n定位上下文：\n\n# search: add\n# file: adder.py L1-L11\n   1: def add(a, b)\n   2:     return a + b\n\n# search: add\n# file: tests/test_adder.py L1-L14\n   1: from adder import add\n   2: \n   3: def test_add():\n   4:     assert add(2, 3) == 5\n\n# rig: neighbor tests/test_adder.py\n# file: tests/test_adder.py L1-L120\n   1: from adder import add\n   2: \n   3: def test_add():\n   4:     assert add(2, 3) == 5",
               "attempt": 0
             },
             "output": {
-              "raw": "<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"adder.py\",\"new_text\":'def add(a, b):\\n    return a + b\\n'}}</tool>",
-              "ok": false,
-              "message": "generate 须返回 tool 调用，收到：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"adder.py\",\"new_text\":'def add(a, b):\\n    return a + b\\n'}}</tool>"
+              "raw": "```json\n<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"adder.py\",\"new_text\":\"def add(a, b):\\n    return a + b\\n\"}}</tool>\n```",
+              "ok": true,
+              "message": "已修补 adder.py",
+              "tool": "patch_file",
+              "args": {
+                "path": "adder.py",
+                "old_text": "def add(a, b)\n    return a + b\n",
+                "new_text": "def add(a, b):\n    return a + b\n"
+              },
+              "path": "adder.py"
             },
             "meta": {
               "intent_id": "fix_bug"
             }
+          },
+          {
+            "stage": "verify",
+            "input": {
+              "intent_id": "fix_bug",
+              "generate_attempt": 0
+            },
+            "output": {
+              "ok": true,
+              "message": "verify 通过（pytest）",
+              "data": {
+                "method": "pytest"
+              }
+            }
           }
         ]
       },
-      "failure_step": "expect_files",
-      "reason": "adder.py 内容与期望不符",
-      "elapsed_ms": 44677.1,
+      "failure_step": null,
+      "reason": null,
+      "elapsed_ms": 81404.8,
       "steps": [
         {
           "step": "locate",
@@ -1561,24 +1503,29 @@
         },
         {
           "step": "generate",
-          "status": "fail",
-          "detail": "[harness] fix_bug 2/3 generate fail"
+          "status": "ok",
+          "detail": "[harness] fix_bug 2/3 generate ok"
         },
         {
-          "step": "expect_files",
-          "status": "fail",
-          "detail": "adder.py 内容与期望不符"
+          "step": "verify",
+          "status": "ok",
+          "detail": "[harness] fix_bug 3/3 verify ok"
+        },
+        {
+          "step": "post_check",
+          "status": "ok",
+          "detail": "终判通过"
         }
       ],
       "tier": "easy",
-      "grading": "exact"
+      "grading": "tests_only"
     },
     {
       "task_id": "nameerror_index",
-      "passed": false,
+      "passed": true,
       "pipeline_ok": null,
-      "outcome_ok": false,
-      "failure_type": "expect_files",
+      "outcome_ok": true,
+      "failure_type": "outcome_ok",
       "observability": {
         "gate": {
           "intent_id": "fix_bug",
@@ -1587,8 +1534,8 @@
         },
         "last_verify": {
           "ok": true,
-          "method": "py_compile",
-          "summary": "py_compile 通过：first_item.py"
+          "method": "pytest",
+          "summary": "verify 通过（pytest）"
         },
         "harness_last_node": {
           "intent_id": "fix_bug",
@@ -1597,7 +1544,8 @@
           "ok": true
         },
         "files_touched": [
-          "first_item.py"
+          "first_item.py",
+          "tests/test_first.py"
         ],
         "open_fallback": false,
         "generate_attempts": 1,
@@ -1618,10 +1566,10 @@
           {
             "stage": "rig",
             "output": {
-              "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-nameerror_index-6fjmko7e\\.mini-coding-agent\\rig.db",
-              "files": 1,
-              "symbols": 1,
-              "imports": 0,
+              "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-nameerror_index-jh2hirtl\\.mini-coding-agent\\rig.db",
+              "files": 2,
+              "symbols": 2,
+              "imports": 1,
               "built": true
             }
           },
@@ -1639,7 +1587,8 @@
               "symbols_hint": [
                 "idx",
                 "first"
-              ]
+              ],
+              "test_command": "python -m pytest -q"
             }
           },
           {
@@ -1653,17 +1602,20 @@
                 "symbols_hint": [
                   "idx",
                   "first"
-                ]
+                ],
+                "test_command": "python -m pytest -q"
               }
             },
             "output": {
               "ok": true,
-              "message": "定位完成（rig+回退）：1 个文件",
+              "message": "定位完成（rig+回退）：2 个文件",
               "files": [
-                "first_item.py"
+                "first_item.py",
+                "tests/test_first.py"
               ],
               "snippets": [
-                "# search: idx\n# file: first_item.py L1-L12\n   1: def first(items):\n   2:     return items[idx]"
+                "# search: idx\n# file: first_item.py L1-L12\n   1: def first(items):\n   2:     return items[idx]",
+                "# rig: neighbor tests/test_first.py\n# file: tests/test_first.py L1-L120\n   1: from first_item import first\n   2: \n   3: def test_first():\n   4:     assert first([10, 20]) == 10"
               ],
               "used_rig": true,
               "symbols_hint": [
@@ -1675,18 +1627,18 @@
           {
             "stage": "generate",
             "input": {
-              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'first_item.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"first_item.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\nTraceback (most recent call last):\n  File \"first_item.py\", line 2, in first\n    return items[idx]\nNameError: name 'idx' is not defined\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\ndef first(items):\n    return items[idx]\n\n```\n\n定位上下文：\n\n# search: idx\n# file: first_item.py L1-L12\n   1: def first(items):\n   2:     return items[idx]",
+              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'first_item.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"first_item.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\nTraceback (most recent call last):\n  File \"first_item.py\", line 2, in first\n    return items[idx]\nNameError: name 'idx' is not defined\n\n测试规格（必须满足；禁止修改 tests/ 下文件；以 assert 为准，勿擅自改语义）：\n- assert first([10, 20]) == 10\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\ndef first(items):\n    return items[idx]\n\n```\n\n定位上下文：\n\n# search: idx\n# file: first_item.py L1-L12\n   1: def first(items):\n   2:     return items[idx]\n\n# rig: neighbor tests/test_first.py\n# file: tests/test_first.py L1-L120\n   1: from first_item import first\n   2: \n   3: def test_first():\n   4:     assert first([10, 20]) == 10",
               "attempt": 0
             },
             "output": {
-              "raw": "<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"first_item.py\",\"new_text\":\"def first(items):\\n    if idx < len(items):\\n        return items[idx]\\n    else:\\n        raise IndexError('Index out of range')\"}}</tool>",
+              "raw": "<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"first_item.py\",\"new_text\":\"def first(items):\\n    idx = 0\\n    return items[idx]\"}}</tool>",
               "ok": true,
               "message": "已修补 first_item.py",
               "tool": "patch_file",
               "args": {
                 "path": "first_item.py",
                 "old_text": "def first(items):\n    return items[idx]\n",
-                "new_text": "def first(items):\n    if idx < len(items):\n        return items[idx]\n    else:\n        raise IndexError('Index out of range')"
+                "new_text": "def first(items):\n    idx = 0\n    return items[idx]"
               },
               "path": "first_item.py"
             },
@@ -1702,20 +1654,17 @@
             },
             "output": {
               "ok": true,
-              "message": "py_compile 通过：first_item.py",
+              "message": "verify 通过（pytest）",
               "data": {
-                "method": "py_compile",
-                "paths": [
-                  "first_item.py"
-                ]
+                "method": "pytest"
               }
             }
           }
         ]
       },
-      "failure_step": "expect_files",
-      "reason": "first_item.py 内容与期望不符",
-      "elapsed_ms": 57538.2,
+      "failure_step": null,
+      "reason": null,
+      "elapsed_ms": 62823.1,
       "steps": [
         {
           "step": "locate",
@@ -1733,13 +1682,13 @@
           "detail": "[harness] fix_bug 3/3 verify ok"
         },
         {
-          "step": "expect_files",
-          "status": "fail",
-          "detail": "first_item.py 内容与期望不符"
+          "step": "post_check",
+          "status": "ok",
+          "detail": "终判通过"
         }
       ],
       "tier": "easy",
-      "grading": "exact"
+      "grading": "tests_only"
     },
     {
       "task_id": "off_by_one_range",
@@ -1755,8 +1704,8 @@
         },
         "last_verify": {
           "ok": false,
-          "method": "shell",
-          "summary": "exit_code: 1\nstdout:\nF                                                                        [100%]\n================================== FAILURES ===================================\n_________________________________ test_\n...[已截断 359 字符]"
+          "method": "pytest",
+          "summary": "pytest 失败（exit 1）：F                                                                        [100%]\n================================== FAILURES ===================================\n_________________________________ test_cou\n...[已截断 298 字符]"
         },
         "harness_last_node": {
           "intent_id": "fix_bug",
@@ -1787,7 +1736,7 @@
           {
             "stage": "rig",
             "output": {
-              "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-off_by_one_range-uyz5gq9j\\.mini-coding-agent\\rig.db",
+              "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-off_by_one_range-6urh958c\\.mini-coding-agent\\rig.db",
               "files": 2,
               "symbols": 2,
               "imports": 1,
@@ -1846,18 +1795,18 @@
           {
             "stage": "generate",
             "input": {
-              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'count_down.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"count_down.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\npytest 失败：tests/test_count.py::test_count — assert count_down(3) == 3，实际得到 2\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\ndef count_down(n):\n    c = 0\n    for i in range(n - 1, 0, -1):\n        c += 1\n    return c\n\n```\n\n定位上下文：\n\n# rig: count_down (function) @ count_down.py:1\n# file: count_down.py L1-L15\n   1: def count_down(n):\n   2:     c = 0\n   3:     for i in range(n - 1, 0, -1):\n   4:         c += 1\n   5:     return c\n\n# rig: test_count @ tests/test_count.py:3\n# file: tests/test_count.py L1-L14\n   1: from count_down import count_down\n   2: \n   3: def test_count():\n   4:     assert count_down(3) == 3\n\n# rig: neighbor count_down.py\n# file: count_down.py L1-L120\n   1: def count_down(n):\n   2:     c = 0\n   3:     for i in range(n - 1, 0, -1):\n   4:         c += 1\n   5:     return c",
+              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'count_down.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"count_down.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\npytest 失败：tests/test_count.py::test_count — assert count_down(3) == 3，实际得到 2\n\n测试规格（必须满足；禁止修改 tests/ 下文件；以 assert 为准，勿擅自改语义）：\n- assert count_down(3) == 3\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\ndef count_down(n):\n    c = 0\n    for i in range(n - 1, 0, -1):\n        c += 1\n    return c\n\n```\n\n定位上下文：\n\n# rig: count_down (function) @ count_down.py:1\n# file: count_down.py L1-L15\n   1: def count_down(n):\n   2:     c = 0\n   3:     for i in range(n - 1, 0, -1):\n   4:         c += 1\n   5:     return c\n\n# rig: test_count @ tests/test_count.py:3\n# file: tests/test_count.py L1-L14\n   1: from count_down import count_down\n   2: \n   3: def test_count():\n   4:     assert count_down(3) == 3\n\n# rig: neighbor count_down.py\n# file: count_down.py L1-L120\n   1: def count_down(n):\n   2:     c = 0\n   3:     for i in range(n - 1, 0, -1):\n   4:         c += 1\n   5:     return c",
               "attempt": 0
             },
             "output": {
-              "raw": "```json\n<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"count_down.py\",\"new_text\":\"def count_down(n):\\n    c = n\\n    for i in range(n - 1, 0, -1):\\n        c -= 1\\n    return c\\n\"}}</tool>\n```",
+              "raw": "```\ndef count_down(n):\n    c = n\n    for i in range(n - 1, 0, -1):\n        c -= 1\n    return c\n```",
               "ok": true,
               "message": "已修补 count_down.py",
               "tool": "patch_file",
               "args": {
                 "path": "count_down.py",
                 "old_text": "def count_down(n):\n    c = 0\n    for i in range(n - 1, 0, -1):\n        c += 1\n    return c\n",
-                "new_text": "def count_down(n):\n    c = n\n    for i in range(n - 1, 0, -1):\n        c -= 1\n    return c\n"
+                "new_text": "def count_down(n):\n    c = n\n    for i in range(n - 1, 0, -1):\n        c -= 1\n    return c"
               },
               "path": "count_down.py"
             },
@@ -1873,17 +1822,16 @@
             },
             "output": {
               "ok": false,
-              "message": "exit_code: 1\nstdout:\nF                                                                        [100%]\n================================== FAILURES ===================================\n_________________________________ test_count __________________________________\n\n    def test_count():\n>       assert count_down(3) == 3\nE       assert 1 == 3\nE        +  where 1 = count_down(3)\n\ntests\\test_count.py:4: AssertionError\n=========================== short test summary info ===========================\nFAILED tests/test_count.py::test_count - assert 1 == 3\n1 failed in 0.25s\nstderr:\n（空）",
+              "message": "pytest 失败（exit 1）：F                                                                        [100%]\n================================== FAILURES ===================================\n_________________________________ test_count __________________________________\n\n    def test_count():\n>       assert count_down(3) == 3\nE       assert 1 == 3\nE        +  where 1 = count_down(3)\n\ntests\\test_count.py:4: AssertionError\n=========================== short test summary info ===========================\nFAILED tests/test_count.py",
               "data": {
-                "method": "shell",
-                "command": "python -m pytest -q"
+                "method": "pytest"
               }
             }
           },
           {
             "stage": "generate",
             "input": {
-              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'count_down.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"count_down.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\npytest 失败：tests/test_count.py::test_count — assert count_down(3) == 3，实际得到 2\n\n上次失败，请修正：\nE       assert 1 == 3\nE        +  where 1 = count_down(3)\ntests\\test_count.py:4: AssertionError\n=========================== short test summary info ===========================\nFAILED tests/test_count.py::test_count - assert 1 == 3\n1 failed in 0.25s\nstderr:\n（空）\n（第 2 次 generate 尝试）\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\ndef count_down(n):\n    c = n\n    for i in range(n - 1, 0, -1):\n        c -= 1\n    return c\n\n```\n\n定位上下文：\n\n# rig: count_down (function) @ count_down.py:1\n# file: count_down.py L1-L15\n   1: def count_down(n):\n   2:     c = 0\n   3:     for i in range(n - 1, 0, -1):\n   4:         c += 1\n   5:     return c\n\n# rig: test_count @ tests/test_count.py:3\n# file: tests/test_count.py L1-L14\n   1: from count_down import count_down\n   2: \n   3: def test_count():\n   4:     assert count_down(3) == 3\n\n# rig: neighbor count_down.py\n# file: count_down.py L1-L120\n   1: def count_down(n):\n   2:     c = 0\n   3:     for i in range(n - 1, 0, -1):\n   4:         c += 1\n   5:     return c",
+              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'count_down.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"count_down.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\npytest 失败：tests/test_count.py::test_count — assert count_down(3) == 3，实际得到 2\n\n测试规格（必须满足；禁止修改 tests/ 下文件；以 assert 为准，勿擅自改语义）：\n- assert count_down(3) == 3\n\n上次失败，请修正：\n_________________________________ test_count __________________________________\n    def test_count():\n>       assert count_down(3) == 3\nE       assert 1 == 3\nE        +  where 1 = count_down(3)\ntests\\test_count.py:4: AssertionError\n=========================== short test summary info ===========================\nFAILED tests/test_count.py\npytest 断言失败：请使函数返回值/行为与上方「测试规格」中的 assert 一致；不要仅消除 NameError/SyntaxError，也不要擅自加问候语或格式化字符串。\n（第 2 次 generate 尝试）\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\ndef count_down(n):\n    c = n\n    for i in range(n - 1, 0, -1):\n        c -= 1\n    return c\n\n```\n\n定位上下文：\n\n# rig: count_down (function) @ count_down.py:1\n# file: count_down.py L1-L15\n   1: def count_down(n):\n   2:     c = 0\n   3:     for i in range(n - 1, 0, -1):\n   4:         c += 1\n   5:     return c\n\n# rig: test_count @ tests/test_count.py:3\n# file: tests/test_count.py L1-L14\n   1: from count_down import count_down\n   2: \n   3: def test_count():\n   4:     assert count_down(3) == 3\n\n# rig: neighbor count_down.py\n# file: count_down.py L1-L120\n   1: def count_down(n):\n   2:     c = 0\n   3:     for i in range(n - 1, 0, -1):\n   4:         c += 1\n   5:     return c",
               "attempt": 1
             },
             "output": {
@@ -1910,28 +1858,27 @@
             },
             "output": {
               "ok": false,
-              "message": "exit_code: 1\nstdout:\nF                                                                        [100%]\n================================== FAILURES ===================================\n_________________________________ test_count __________________________________\n\n    def test_count():\n>       assert count_down(3) == 3\nE       assert 1 == 3\nE        +  where 1 = count_down(3)\n\ntests\\test_count.py:4: AssertionError\n=========================== short test summary info ===========================\nFAILED tests/test_count.py::test_count - assert 1 == 3\n1 failed in 0.23s\nstderr:\n（空）",
+              "message": "pytest 失败（exit 1）：F                                                                        [100%]\n================================== FAILURES ===================================\n_________________________________ test_count __________________________________\n\n    def test_count():\n>       assert count_down(3) == 3\nE       assert 1 == 3\nE        +  where 1 = count_down(3)\n\ntests\\test_count.py:4: AssertionError\n=========================== short test summary info ===========================\nFAILED tests/test_count.py",
               "data": {
-                "method": "shell",
-                "command": "python -m pytest -q"
+                "method": "pytest"
               }
             }
           },
           {
             "stage": "generate",
             "input": {
-              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'count_down.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"count_down.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\npytest 失败：tests/test_count.py::test_count — assert count_down(3) == 3，实际得到 2\n\n上次失败，请修正：\nE       assert 1 == 3\nE        +  where 1 = count_down(3)\ntests\\test_count.py:4: AssertionError\n=========================== short test summary info ===========================\nFAILED tests/test_count.py::test_count - assert 1 == 3\n1 failed in 0.23s\nstderr:\n（空）\n（第 3 次 generate 尝试）\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\ndef count_down(n):\n    c = n\n    for i in range(n - 1, 0, -1):\n        c -= 1\n    return c\n\n```\n\n定位上下文：\n\n# rig: count_down (function) @ count_down.py:1\n# file: count_down.py L1-L15\n   1: def count_down(n):\n   2:     c = 0\n   3:     for i in range(n - 1, 0, -1):\n   4:         c += 1\n   5:     return c\n\n# rig: test_count @ tests/test_count.py:3\n# file: tests/test_count.py L1-L14\n   1: from count_down import count_down\n   2: \n   3: def test_count():\n   4:     assert count_down(3) == 3\n\n# rig: neighbor count_down.py\n# file: count_down.py L1-L120\n   1: def count_down(n):\n   2:     c = 0\n   3:     for i in range(n - 1, 0, -1):\n   4:         c += 1\n   5:     return c",
+              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'count_down.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"count_down.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\npytest 失败：tests/test_count.py::test_count — assert count_down(3) == 3，实际得到 2\n\n测试规格（必须满足；禁止修改 tests/ 下文件；以 assert 为准，勿擅自改语义）：\n- assert count_down(3) == 3\n\n上次失败，请修正：\n_________________________________ test_count __________________________________\n    def test_count():\n>       assert count_down(3) == 3\nE       assert 1 == 3\nE        +  where 1 = count_down(3)\ntests\\test_count.py:4: AssertionError\n=========================== short test summary info ===========================\nFAILED tests/test_count.py\npytest 断言失败：请使函数返回值/行为与上方「测试规格」中的 assert 一致；不要仅消除 NameError/SyntaxError，也不要擅自加问候语或格式化字符串。\n（第 3 次 generate 尝试）\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\ndef count_down(n):\n    c = n\n    for i in range(n - 1, 0, -1):\n        c -= 1\n    return c\n\n```\n\n定位上下文：\n\n# rig: count_down (function) @ count_down.py:1\n# file: count_down.py L1-L15\n   1: def count_down(n):\n   2:     c = 0\n   3:     for i in range(n - 1, 0, -1):\n   4:         c += 1\n   5:     return c\n\n# rig: test_count @ tests/test_count.py:3\n# file: tests/test_count.py L1-L14\n   1: from count_down import count_down\n   2: \n   3: def test_count():\n   4:     assert count_down(3) == 3\n\n# rig: neighbor count_down.py\n# file: count_down.py L1-L120\n   1: def count_down(n):\n   2:     c = 0\n   3:     for i in range(n - 1, 0, -1):\n   4:         c += 1\n   5:     return c",
               "attempt": 2
             },
             "output": {
-              "raw": "```\ndef count_down(n):\n    c = n\n    for i in range(n - 1, 0, -1):\n        c -= 1\n    return c\n\n```",
+              "raw": "```json\n<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"count_down.py\",\"new_text\":\"def count_down(n):\\n    c = n\\n    for i in range(n - 1, 0, -1):\\n        c -= 1\\n    return c\\n\"}}</tool>\n```",
               "ok": true,
               "message": "已修补 count_down.py",
               "tool": "patch_file",
               "args": {
                 "path": "count_down.py",
                 "old_text": "def count_down(n):\n    c = n\n    for i in range(n - 1, 0, -1):\n        c -= 1\n    return c\n",
-                "new_text": "def count_down(n):\n    c = n\n    for i in range(n - 1, 0, -1):\n        c -= 1\n    return c"
+                "new_text": "def count_down(n):\n    c = n\n    for i in range(n - 1, 0, -1):\n        c -= 1\n    return c\n"
               },
               "path": "count_down.py"
             },
@@ -1947,18 +1894,17 @@
             },
             "output": {
               "ok": false,
-              "message": "exit_code: 1\nstdout:\nF                                                                        [100%]\n================================== FAILURES ===================================\n_________________________________ test_count __________________________________\n\n    def test_count():\n>       assert count_down(3) == 3\nE       assert 1 == 3\nE        +  where 1 = count_down(3)\n\ntests\\test_count.py:4: AssertionError\n=========================== short test summary info ===========================\nFAILED tests/test_count.py::test_count - assert 1 == 3\n1 failed in 0.85s\nstderr:\n（空）",
+              "message": "pytest 失败（exit 1）：F                                                                        [100%]\n================================== FAILURES ===================================\n_________________________________ test_count __________________________________\n\n    def test_count():\n>       assert count_down(3) == 3\nE       assert 1 == 3\nE        +  where 1 = count_down(3)\n\ntests\\test_count.py:4: AssertionError\n=========================== short test summary info ===========================\nFAILED tests/test_count.py",
               "data": {
-                "method": "shell",
-                "command": "python -m pytest -q"
+                "method": "pytest"
               }
             }
           }
         ]
       },
       "failure_step": "verify",
-      "reason": "pytest 失败（exit 1）：F                                                                        [100%]\n================================== FAILURES ===================================\n_________________________________ test_count __________________________________\n\n    def test_count():\n>       assert count_down(3) == 3\nE       assert 1 == 3\nE        +  where 1 = count_down(3)\n\nC:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-off_by_one_range-uyz5gq9j\\tests\\test_count.py:4: AssertionError\n=========================== short tes",
-      "elapsed_ms": 203273.5,
+      "reason": "pytest 失败（exit 1）：F                                                                        [100%]\n================================== FAILURES ===================================\n_________________________________ test_count __________________________________\n\n    def test_count():\n>       assert count_down(3) == 3\nE       assert 1 == 3\nE        +  where 1 = count_down(3)\n\nC:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-off_by_one_range-6urh958c\\tests\\test_count.py:4: AssertionError\n=========================== short tes",
+      "elapsed_ms": 148763.1,
       "steps": [
         {
           "step": "locate",
@@ -2006,10 +1952,10 @@
     },
     {
       "task_id": "empty_body_double",
-      "passed": false,
+      "passed": true,
       "pipeline_ok": null,
-      "outcome_ok": false,
-      "failure_type": "expect_files",
+      "outcome_ok": true,
+      "failure_type": "outcome_ok",
       "observability": {
         "gate": {
           "intent_id": "fix_bug",
@@ -2017,18 +1963,19 @@
           "route": "harness_pipeline"
         },
         "last_verify": {
-          "ok": false,
-          "method": null,
-          "summary": "generate 须返回 tool 调用，收到：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"double.py\",\"new_text\":'def double(x):\\n    return x * 2\\n'}}</tool>"
+          "ok": true,
+          "method": "pytest",
+          "summary": "verify 通过（pytest）"
         },
         "harness_last_node": {
           "intent_id": "fix_bug",
-          "node_id": "generate",
-          "type": "generate",
-          "ok": false
+          "node_id": "verify",
+          "type": "verify",
+          "ok": true
         },
         "files_touched": [
-          "double.py"
+          "double.py",
+          "tests/test_double.py"
         ],
         "open_fallback": false,
         "generate_attempts": 1,
@@ -2049,10 +1996,10 @@
           {
             "stage": "rig",
             "output": {
-              "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-empty_body_double-044fuihy\\.mini-coding-agent\\rig.db",
-              "files": 1,
-              "symbols": 1,
-              "imports": 0,
+              "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-empty_body_double-hwaw81ox\\.mini-coding-agent\\rig.db",
+              "files": 2,
+              "symbols": 2,
+              "imports": 1,
               "built": true
             }
           },
@@ -2069,7 +2016,8 @@
               ],
               "symbols_hint": [
                 "double"
-              ]
+              ],
+              "test_command": "python -m pytest -q"
             }
           },
           {
@@ -2082,17 +2030,21 @@
                 ],
                 "symbols_hint": [
                   "double"
-                ]
+                ],
+                "test_command": "python -m pytest -q"
               }
             },
             "output": {
               "ok": true,
-              "message": "定位完成（rig+回退）：1 个文件",
+              "message": "定位完成（rig+回退）：2 个文件",
               "files": [
-                "double.py"
+                "double.py",
+                "tests/test_double.py"
               ],
               "snippets": [
-                "# rig: double (function) @ double.py:1\n# file: double.py L1-L12\n   1: def double(x):\n   2:     pass"
+                "# rig: double (function) @ double.py:1\n# file: double.py L1-L12\n   1: def double(x):\n   2:     pass",
+                "# rig: test_double @ tests/test_double.py:3\n# file: tests/test_double.py L1-L14\n   1: from double import double\n   2: \n   3: def test_double():\n   4:     assert double(4) == 8",
+                "# rig: neighbor tests/test_double.py\n# file: tests/test_double.py L1-L120\n   1: from double import double\n   2: \n   3: def test_double():\n   4:     assert double(4) == 8"
               ],
               "used_rig": true,
               "symbols_hint": [
@@ -2103,23 +2055,44 @@
           {
             "stage": "generate",
             "input": {
-              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'double.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"double.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\ndouble(4) 返回 None，应为 8；请修复 double.py\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\ndef double(x):\n    pass\n\n```\n\n定位上下文：\n\n# rig: double (function) @ double.py:1\n# file: double.py L1-L12\n   1: def double(x):\n   2:     pass",
+              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'double.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"double.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\ndouble(4) 返回 None，应为 8；请修复 double.py\n\n测试规格（必须满足；禁止修改 tests/ 下文件；以 assert 为准，勿擅自改语义）：\n- assert double(4) == 8\n- assert double(4) == 8\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\ndef double(x):\n    pass\n\n```\n\n定位上下文：\n\n# rig: double (function) @ double.py:1\n# file: double.py L1-L12\n   1: def double(x):\n   2:     pass\n\n# rig: test_double @ tests/test_double.py:3\n# file: tests/test_double.py L1-L14\n   1: from double import double\n   2: \n   3: def test_double():\n   4:     assert double(4) == 8\n\n# rig: neighbor tests/test_double.py\n# file: tests/test_double.py L1-L120\n   1: from double import double\n   2: \n   3: def test_double():\n   4:     assert double(4) == 8",
               "attempt": 0
             },
             "output": {
-              "raw": "<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"double.py\",\"new_text\":'def double(x):\\n    return x * 2\\n'}}</tool>",
-              "ok": false,
-              "message": "generate 须返回 tool 调用，收到：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"double.py\",\"new_text\":'def double(x):\\n    return x * 2\\n'}}</tool>"
+              "raw": "```\ndef double(x):\n    return x * 2\n```",
+              "ok": true,
+              "message": "已修补 double.py",
+              "tool": "patch_file",
+              "args": {
+                "path": "double.py",
+                "old_text": "def double(x):\n    pass\n",
+                "new_text": "def double(x):\n    return x * 2"
+              },
+              "path": "double.py"
             },
             "meta": {
               "intent_id": "fix_bug"
             }
+          },
+          {
+            "stage": "verify",
+            "input": {
+              "intent_id": "fix_bug",
+              "generate_attempt": 0
+            },
+            "output": {
+              "ok": true,
+              "message": "verify 通过（pytest）",
+              "data": {
+                "method": "pytest"
+              }
+            }
           }
         ]
       },
-      "failure_step": "expect_files",
-      "reason": "double.py 内容与期望不符",
-      "elapsed_ms": 57513.7,
+      "failure_step": null,
+      "reason": null,
+      "elapsed_ms": 58329.7,
       "steps": [
         {
           "step": "locate",
@@ -2128,17 +2101,22 @@
         },
         {
           "step": "generate",
-          "status": "fail",
-          "detail": "[harness] fix_bug 2/3 generate fail"
+          "status": "ok",
+          "detail": "[harness] fix_bug 2/3 generate ok"
         },
         {
-          "step": "expect_files",
-          "status": "fail",
-          "detail": "double.py 内容与期望不符"
+          "step": "verify",
+          "status": "ok",
+          "detail": "[harness] fix_bug 3/3 verify ok"
+        },
+        {
+          "step": "post_check",
+          "status": "ok",
+          "detail": "终判通过"
         }
       ],
       "tier": "easy",
-      "grading": "exact"
+      "grading": "tests_only"
     },
     {
       "task_id": "no_file_hint_add",
@@ -2154,8 +2132,8 @@
         },
         "last_verify": {
           "ok": true,
-          "method": "shell",
-          "summary": "exit_code: 0\nstdout:\n.                                                                        [100%]\n1 passed in 0.08s\nstderr:\n（空）"
+          "method": "pytest",
+          "summary": "verify 通过（pytest）"
         },
         "harness_last_node": {
           "intent_id": "fix_bug",
@@ -2179,13 +2157,13 @@
               "intent_id": "fix_bug",
               "confidence": "high",
               "route": "harness_pipeline",
-              "raw": "{\n  \"intent_id\": \"fix_bug\",\n  \"confidence\": \"high\",\n  \"skill\": null\n}"
+              "raw": "```json\n{\n  \"intent_id\": \"fix_bug\",\n  \"confidence\": \"high\",\n  \"skill\": null\n}\n```"
             }
           },
           {
             "stage": "rig",
             "output": {
-              "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-no_file_hint_add-decbv79l\\.mini-coding-agent\\rig.db",
+              "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-no_file_hint_add-0srpm0wn\\.mini-coding-agent\\rig.db",
               "files": 2,
               "symbols": 2,
               "imports": 1,
@@ -2264,10 +2242,9 @@
             },
             "output": {
               "ok": true,
-              "message": "exit_code: 0\nstdout:\n.                                                                        [100%]\n1 passed in 0.08s\nstderr:\n（空）",
+              "message": "verify 通过（pytest）",
               "data": {
-                "method": "shell",
-                "command": "python -m pytest -q"
+                "method": "pytest"
               }
             }
           }
@@ -2275,7 +2252,7 @@
       },
       "failure_step": null,
       "reason": null,
-      "elapsed_ms": 51346.9,
+      "elapsed_ms": 54331.5,
       "steps": [
         {
           "step": "locate",
@@ -2315,8 +2292,8 @@
         },
         "last_verify": {
           "ok": true,
-          "method": "shell",
-          "summary": "exit_code: 0\nstdout:\n.                                                                        [100%]\n1 passed in 0.04s\nstderr:\n（空）"
+          "method": "pytest",
+          "summary": "verify 通过（pytest）"
         },
         "harness_last_node": {
           "intent_id": "fix_bug",
@@ -2347,7 +2324,7 @@
           {
             "stage": "rig",
             "output": {
-              "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-bench_retry_off_by_one-uve77_sl\\.mini-coding-agent\\rig.db",
+              "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-bench_retry_off_by_one-vx6yvvur\\.mini-coding-agent\\rig.db",
               "files": 2,
               "symbols": 2,
               "imports": 1,
@@ -2406,7 +2383,7 @@
           {
             "stage": "generate",
             "input": {
-              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'sum_first.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"sum_first.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\npytest 失败：tests/test_sum.py::test_sum_first — assert sum_first(3) == 6，实际得到 3\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\ndef sum_first(n):\n    s = 0\n    for i in range(1, n):\n        s += i\n    return s\n\n```\n\n定位上下文：\n\n# rig: sum_first (function) @ sum_first.py:1\n# file: sum_first.py L1-L15\n   1: def sum_first(n):\n   2:     s = 0\n   3:     for i in range(1, n):\n   4:         s += i\n   5:     return s\n\n# rig: test_sum_first @ tests/test_sum.py:3\n# file: tests/test_sum.py L1-L14\n   1: from sum_first import sum_first\n   2: \n   3: def test_sum_first():\n   4:     assert sum_first(3) == 6\n\n# rig: neighbor sum_first.py\n# file: sum_first.py L1-L120\n   1: def sum_first(n):\n   2:     s = 0\n   3:     for i in range(1, n):\n   4:         s += i\n   5:     return s",
+              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'sum_first.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"sum_first.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\npytest 失败：tests/test_sum.py::test_sum_first — assert sum_first(3) == 6，实际得到 3\n\n测试规格（必须满足；禁止修改 tests/ 下文件；以 assert 为准，勿擅自改语义）：\n- assert sum_first(3) == 6\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\ndef sum_first(n):\n    s = 0\n    for i in range(1, n):\n        s += i\n    return s\n\n```\n\n定位上下文：\n\n# rig: sum_first (function) @ sum_first.py:1\n# file: sum_first.py L1-L15\n   1: def sum_first(n):\n   2:     s = 0\n   3:     for i in range(1, n):\n   4:         s += i\n   5:     return s\n\n# rig: test_sum_first @ tests/test_sum.py:3\n# file: tests/test_sum.py L1-L14\n   1: from sum_first import sum_first\n   2: \n   3: def test_sum_first():\n   4:     assert sum_first(3) == 6\n\n# rig: neighbor sum_first.py\n# file: sum_first.py L1-L120\n   1: def sum_first(n):\n   2:     s = 0\n   3:     for i in range(1, n):\n   4:         s += i\n   5:     return s",
               "attempt": 0
             },
             "output": {
@@ -2433,10 +2410,9 @@
             },
             "output": {
               "ok": true,
-              "message": "exit_code: 0\nstdout:\n.                                                                        [100%]\n1 passed in 0.04s\nstderr:\n（空）",
+              "message": "verify 通过（pytest）",
               "data": {
-                "method": "shell",
-                "command": "python -m pytest -q"
+                "method": "pytest"
               }
             }
           }
@@ -2444,7 +2420,7 @@
       },
       "failure_step": null,
       "reason": null,
-      "elapsed_ms": 65412.2,
+      "elapsed_ms": 76610.3,
       "steps": [
         {
           "step": "locate",
@@ -2484,8 +2460,8 @@
         },
         "last_verify": {
           "ok": true,
-          "method": "shell",
-          "summary": "exit_code: 0\nstdout:\n.                                                                        [100%]\n1 passed in 0.04s\nstderr:\n（空）"
+          "method": "pytest",
+          "summary": "verify 通过（pytest）"
         },
         "harness_last_node": {
           "intent_id": "fix_bug",
@@ -2518,7 +2494,7 @@
           {
             "stage": "rig",
             "output": {
-              "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-bench_decoy_calc_backup-bbrsa6qm\\.mini-coding-agent\\rig.db",
+              "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-bench_decoy_calc_backup-m9xc9wx8\\.mini-coding-agent\\rig.db",
               "files": 3,
               "symbols": 3,
               "imports": 1,
@@ -2585,18 +2561,18 @@
           {
             "stage": "generate",
             "input": {
-              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'calc.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"calc.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\nTraceback (most recent call last):\n  File \"calc.py\", line 2, in add\n    return a + c\nNameError: name 'c' is not defined\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\ndef add(a, b):\n    return a + c\n\n```\n\n定位上下文：\n\n# search: c\n# file: calc.py L1-L12\n   1: def add(a, b):\n   2:     return a + c\n\n# search: c\n# file: calc_backup.py L1-L12\n   1: def add(a, b):\n   2:     return a + c\n\n# search: c\n# file: README.md L1-L11\n   1: eval workspace\n\n# search: c\n# file: tests/test_calc.py L1-L11\n   1: from calc import add\n   2: \n   3: def test_add():\n   4:     assert add(2, 3) == 5\n\n# rig: test_add @ tests/test_calc.py:3\n# file: tests/test_calc.py L1-L14\n   1: from calc import add\n   2: \n   3: def test_add():\n   4:     assert add(2, 3) == 5\n\n# rig: neighbor tests/test_calc.py\n# file: tests/test_calc.py L1-L120\n   1: from calc import add\n   2: \n   3: def test_add():\n   4:     assert add(2, 3) == 5",
+              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'calc.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"calc.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\nTraceback (most recent call last):\n  File \"calc.py\", line 2, in add\n    return a + c\nNameError: name 'c' is not defined\n\n测试规格（必须满足；禁止修改 tests/ 下文件；以 assert 为准，勿擅自改语义）：\n- assert add(2, 3) == 5\n- assert add(2, 3) == 5\n- assert add(2, 3) == 5\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\ndef add(a, b):\n    return a + c\n\n```\n\n定位上下文：\n\n# search: c\n# file: calc.py L1-L12\n   1: def add(a, b):\n   2:     return a + c\n\n# search: c\n# file: calc_backup.py L1-L12\n   1: def add(a, b):\n   2:     return a + c\n\n# search: c\n# file: README.md L1-L11\n   1: eval workspace\n\n# search: c\n# file: tests/test_calc.py L1-L11\n   1: from calc import add\n   2: \n   3: def test_add():\n   4:     assert add(2, 3) == 5\n\n# rig: test_add @ tests/test_calc.py:3\n# file: tests/test_calc.py L1-L14\n   1: from calc import add\n   2: \n   3: def test_add():\n   4:     assert add(2, 3) == 5\n\n# rig: neighbor tests/test_calc.py\n# file: tests/test_calc.py L1-L120\n   1: from calc import add\n   2: \n   3: def test_add():\n   4:     assert add(2, 3) == 5",
               "attempt": 0
             },
             "output": {
-              "raw": "<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"calc.py\",\"new_text\":\"def add(a, b):\\n    return a + b\\n\"}}</tool>",
+              "raw": "```\ndef add(a, b):\n    return a + b\n\n```",
               "ok": true,
               "message": "已修补 calc.py",
               "tool": "patch_file",
               "args": {
                 "path": "calc.py",
                 "old_text": "def add(a, b):\n    return a + c\n",
-                "new_text": "def add(a, b):\n    return a + b\n"
+                "new_text": "def add(a, b):\n    return a + b"
               },
               "path": "calc.py"
             },
@@ -2612,10 +2588,9 @@
             },
             "output": {
               "ok": true,
-              "message": "exit_code: 0\nstdout:\n.                                                                        [100%]\n1 passed in 0.04s\nstderr:\n（空）",
+              "message": "verify 通过（pytest）",
               "data": {
-                "method": "shell",
-                "command": "python -m pytest -q"
+                "method": "pytest"
               }
             }
           }
@@ -2623,7 +2598,7 @@
       },
       "failure_step": null,
       "reason": null,
-      "elapsed_ms": 69790.1,
+      "elapsed_ms": 75852.8,
       "steps": [
         {
           "step": "locate",
@@ -2659,7 +2634,8 @@
         "gate": {
           "intent_id": "explain",
           "confidence": "high",
-          "route": "harness_pipeline"
+          "route": "harness_pipeline",
+          "skill": "null"
         },
         "last_verify": null,
         "harness_last_node": {
@@ -2684,13 +2660,14 @@
               "intent_id": "explain",
               "confidence": "high",
               "route": "harness_pipeline",
-              "raw": "{\n  \"intent_id\": \"explain\",\n  \"confidence\": \"high\",\n  \"skill\": null\n}"
+              "skill": "null",
+              "raw": "{\n  \"intent_id\": \"explain\",\n  \"confidence\": \"high\",\n  \"skill\": \"null\"\n}"
             }
           },
           {
             "stage": "rig",
             "output": {
-              "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-bench_gate_explain_boundary-j9nhr4oc\\.mini-coding-agent\\rig.db",
+              "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-bench_gate_explain_boundary-wgxg7zzm\\.mini-coding-agent\\rig.db",
               "files": 1,
               "symbols": 1,
               "imports": 0,
@@ -2708,7 +2685,8 @@
               "files_hint": [
                 "calc.py"
               ],
-              "symbols_hint": []
+              "symbols_hint": [],
+              "skill_name": "null"
             }
           },
           {
@@ -2719,7 +2697,8 @@
                 "files_hint": [
                   "calc.py"
                 ],
-                "symbols_hint": []
+                "symbols_hint": [],
+                "skill_name": "null"
               }
             },
             "output": {
@@ -2739,7 +2718,7 @@
       },
       "failure_step": null,
       "reason": null,
-      "elapsed_ms": 33850.9,
+      "elapsed_ms": 36410.4,
       "steps": [
         {
           "step": "locate",
@@ -2762,31 +2741,177 @@
     },
     {
       "task_id": "bench_no_rig_search",
-      "passed": false,
-      "pipeline_ok": null,
-      "outcome_ok": false,
-      "failure_type": "exception",
+      "passed": true,
+      "pipeline_ok": true,
+      "outcome_ok": true,
+      "failure_type": "pipeline_ok",
       "observability": {
-        "gate": null,
-        "last_verify": null,
-        "harness_last_node": null,
-        "files_touched": [],
+        "gate": {
+          "intent_id": "fix_bug",
+          "confidence": "high",
+          "route": "harness_pipeline"
+        },
+        "last_verify": {
+          "ok": true,
+          "method": "pytest",
+          "summary": "verify 通过（pytest）"
+        },
+        "harness_last_node": {
+          "intent_id": "fix_bug",
+          "node_id": "verify",
+          "type": "verify",
+          "ok": true
+        },
+        "files_touched": [
+          "helper.py",
+          "README.md",
+          "tests/test_helper.py"
+        ],
         "open_fallback": false,
-        "generate_attempts": 0,
-        "stage_trace": []
+        "generate_attempts": 1,
+        "stage_trace": [
+          {
+            "stage": "gate",
+            "input": {
+              "user_message": "Traceback (most recent call last):\n  File \"helper.py\", line 3, in mul\n    return a * c\nNameError: name 'c' is not defined",
+              "prompt": "你是 Mini-Coding-Agent 的意图分类器（Gate）。\n\n根据用户消息，将其归入下列五类意图之一；仅回复一个 JSON 对象（不要用 markdown 围栏，不要附加说明）。\n\nJSON 字段名必须为英文，说明性文字可用中文。\n\n{\n  \"intent_id\": \"generate_code | fix_bug | refactor | explain | project_ops\",\n  \"confidence\": \"high | low\",\n  \"skill\": \"null 或 skill 名字符串（可选）\"\n}\n\n五类意图（intent_id 必须精确使用下列英文 id）：\n\n| intent_id | 含义 | 典型用户话 |\n|-----------|------|------------|\n| generate_code | 新增/实现代码：新文件、新函数、加测试、按需求写功能 | 「实现一个…」「加个模块」「写单元测试」 |\n| fix_bug | 修复错误：traceback、测试挂、行为不对 | 「报错」「修 bug」「测试失败」 |\n| refactor | 不改语义前提下改结构：重命名、抽函数、整理目录 | 「重构」「提取公共逻辑」 |\n| explain | 只理解不改码：解释、阅读、梳理调用 | 「什么意思」「怎么工作的」「解释一下」 |\n| project_ops | 项目操作：装依赖、跑测试/脚本、git 状态（非改源码） | 「跑 pytest」「pip install」「git status」 |\n\n边界示例（减少混类）：\n\n1. 中英混杂 · 又要改又要解释：「explain how login works and fix the bug in auth.py」\n   → 要改文件 → fix_bug（不是 explain）\n\n2. 中英混杂 · 只跑不改：「please run pytest for me, 不用改代码」\n   → project_ops（不是 fix_bug）\n\n3. 「写测试」：新测试文件/大量新增 → generate_code；测试挂了要修 → fix_bug\n\n4. 「跑一下测试」不改码 → project_ops\n\n5. 意图跨多类且无法确定主目标 → confidence=low\n\n规则：\n\n- confidence=high：意图明确、可归入上述五类之一。\n\n- confidence=low：意图含糊、跨多类、或无法判断是否要改代码。\n\n- skill：若用户明确点名某 Skill 名可填字符串，否则 null。\n\n用户消息：\nTraceback (most recent call last):\n  File \"helper.py\", line 3, in mul\n    return a * c\nNameError: name 'c' is not defined"
+            },
+            "output": {
+              "intent_id": "fix_bug",
+              "confidence": "high",
+              "route": "harness_pipeline",
+              "raw": "{\n  \"intent_id\": \"fix_bug\",\n  \"confidence\": \"high\",\n  \"skill\": null\n}"
+            }
+          },
+          {
+            "stage": "rig",
+            "output": {
+              "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-bench_no_rig_search-fyjg45qv\\.mini-coding-agent\\rig.db",
+              "files": 2,
+              "symbols": 2,
+              "imports": 1,
+              "built": true
+            }
+          },
+          {
+            "stage": "slots",
+            "input": {
+              "user_message": "Traceback (most recent call last):\n  File \"helper.py\", line 3, in mul\n    return a * c\nNameError: name 'c' is not defined",
+              "intent_id": "fix_bug"
+            },
+            "output": {
+              "goal": "Traceback (most recent call last):\n  File \"helper.py\", line 3, in mul\n    return a * c\nNameError: name 'c' is not defined",
+              "files_hint": [
+                "helper.py"
+              ],
+              "symbols_hint": [
+                "c",
+                "mul"
+              ],
+              "test_command": "python -m pytest -q"
+            }
+          },
+          {
+            "stage": "locate",
+            "input": {
+              "slots": {
+                "goal": "Traceback (most recent call last):\n  File \"helper.py\", line 3, in mul\n    return a * c\nNameError: name 'c' is not defined",
+                "files_hint": [
+                  "helper.py"
+                ],
+                "symbols_hint": [
+                  "c",
+                  "mul"
+                ],
+                "test_command": "python -m pytest -q"
+              }
+            },
+            "output": {
+              "ok": true,
+              "message": "定位完成（rig+回退）：3 个文件",
+              "files": [
+                "helper.py",
+                "README.md",
+                "tests/test_helper.py"
+              ],
+              "snippets": [
+                "# search: c\n# file: helper.py L1-L12\n   1: def mul(a, b):\n   2:     return a * c",
+                "# search: c\n# file: README.md L1-L11\n   1: eval workspace",
+                "# rig: test_mul @ tests/test_helper.py:3\n# file: tests/test_helper.py L1-L14\n   1: from helper import mul\n   2: \n   3: def test_mul():\n   4:     assert mul(3, 4) == 12",
+                "# rig: neighbor tests/test_helper.py\n# file: tests/test_helper.py L1-L120\n   1: from helper import mul\n   2: \n   3: def test_mul():\n   4:     assert mul(3, 4) == 12"
+              ],
+              "used_rig": true,
+              "symbols_hint": [
+                "c",
+                "mul"
+              ]
+            }
+          },
+          {
+            "stage": "generate",
+            "input": {
+              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'helper.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"helper.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\nTraceback (most recent call last):\n  File \"helper.py\", line 3, in mul\n    return a * c\nNameError: name 'c' is not defined\n\n测试规格（必须满足；禁止修改 tests/ 下文件；以 assert 为准，勿擅自改语义）：\n- assert mul(3, 4) == 12\n- assert mul(3, 4) == 12\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\ndef mul(a, b):\n    return a * c\n\n```\n\n定位上下文：\n\n# search: c\n# file: helper.py L1-L12\n   1: def mul(a, b):\n   2:     return a * c\n\n# search: c\n# file: README.md L1-L11\n   1: eval workspace\n\n# rig: test_mul @ tests/test_helper.py:3\n# file: tests/test_helper.py L1-L14\n   1: from helper import mul\n   2: \n   3: def test_mul():\n   4:     assert mul(3, 4) == 12\n\n# rig: neighbor tests/test_helper.py\n# file: tests/test_helper.py L1-L120\n   1: from helper import mul\n   2: \n   3: def test_mul():\n   4:     assert mul(3, 4) == 12",
+              "attempt": 0
+            },
+            "output": {
+              "raw": "```\ndef mul(a, b):\n    return a * b\n```",
+              "ok": true,
+              "message": "已修补 helper.py",
+              "tool": "patch_file",
+              "args": {
+                "path": "helper.py",
+                "old_text": "def mul(a, b):\n    return a * c\n",
+                "new_text": "def mul(a, b):\n    return a * b"
+              },
+              "path": "helper.py"
+            },
+            "meta": {
+              "intent_id": "fix_bug"
+            }
+          },
+          {
+            "stage": "verify",
+            "input": {
+              "intent_id": "fix_bug",
+              "generate_attempt": 0
+            },
+            "output": {
+              "ok": true,
+              "message": "verify 通过（pytest）",
+              "data": {
+                "method": "pytest"
+              }
+            }
+          }
+        ]
       },
-      "failure_step": "exception",
-      "reason": "timed out",
-      "elapsed_ms": 467665.3,
+      "failure_step": null,
+      "reason": null,
+      "elapsed_ms": 68695.9,
       "steps": [
         {
-          "step": "exception",
-          "status": "fail",
-          "detail": "timed out"
+          "step": "locate",
+          "status": "ok",
+          "detail": "[harness] fix_bug 1/3 locate ok"
+        },
+        {
+          "step": "generate",
+          "status": "ok",
+          "detail": "[harness] fix_bug 2/3 generate ok"
+        },
+        {
+          "step": "verify",
+          "status": "ok",
+          "detail": "[harness] fix_bug 3/3 verify ok"
+        },
+        {
+          "step": "post_check",
+          "status": "ok",
+          "detail": "终判通过"
         }
       ],
       "tier": "medium",
-      "grading": "exact"
+      "grading": "tests_only"
     },
     {
       "task_id": "import_chain_rate",
@@ -2802,8 +2927,8 @@
         },
         "last_verify": {
           "ok": true,
-          "method": "shell",
-          "summary": "exit_code: 0\nstdout:\n.                                                                        [100%]\n1 passed in 0.05s\nstderr:\n（空）"
+          "method": "pytest",
+          "summary": "verify 通过（pytest）"
         },
         "harness_last_node": {
           "intent_id": "fix_bug",
@@ -2828,13 +2953,13 @@
               "intent_id": "fix_bug",
               "confidence": "high",
               "route": "harness_pipeline",
-              "raw": "{\n  \"intent_id\": \"fix_bug\",\n  \"confidence\": \"high\",\n  \"skill\": null\n}"
+              "raw": "```json\n{\n  \"intent_id\": \"fix_bug\",\n  \"confidence\": \"high\",\n  \"skill\": null\n}\n```"
             }
           },
           {
             "stage": "rig",
             "output": {
-              "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-import_chain_rate-ekdxtq30\\.mini-coding-agent\\rig.db",
+              "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-import_chain_rate-2vwqzi0o\\.mini-coding-agent\\rig.db",
               "files": 3,
               "symbols": 3,
               "imports": 2,
@@ -2893,7 +3018,7 @@
           {
             "stage": "generate",
             "input": {
-              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'app.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"app.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\npytest 失败：tests/test_compute.py::test_compute — assert compute() == 20，实际 2000。百分比费率计算有误。\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\nfrom rates import apply_rate\n\ndef compute():\n    return apply_rate(200, 10)\n\n```\n\n定位上下文：\n\n# rig: compute (function) @ app.py:3\n# file: app.py L1-L14\n   1: from rates import apply_rate\n   2: \n   3: def compute():\n   4:     return apply_rate(200, 10)\n\n# rig: test_compute @ tests/test_compute.py:3\n# file: tests/test_compute.py L1-L14\n   1: from app import compute\n   2: \n   3: def test_compute():\n   4:     assert compute() == 20\n\n# rig: neighbor app.py\n# file: app.py L1-L120\n   1: from rates import apply_rate\n   2: \n   3: def compute():\n   4:     return apply_rate(200, 10)",
+              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'app.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"app.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\npytest 失败：tests/test_compute.py::test_compute — assert compute() == 20，实际 2000。百分比费率计算有误。\n\n测试规格（必须满足；禁止修改 tests/ 下文件；以 assert 为准，勿擅自改语义）：\n- assert compute() == 20\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\nfrom rates import apply_rate\n\ndef compute():\n    return apply_rate(200, 10)\n\n```\n\n定位上下文：\n\n# rig: compute (function) @ app.py:3\n# file: app.py L1-L14\n   1: from rates import apply_rate\n   2: \n   3: def compute():\n   4:     return apply_rate(200, 10)\n\n# rig: test_compute @ tests/test_compute.py:3\n# file: tests/test_compute.py L1-L14\n   1: from app import compute\n   2: \n   3: def test_compute():\n   4:     assert compute() == 20\n\n# rig: neighbor app.py\n# file: app.py L1-L120\n   1: from rates import apply_rate\n   2: \n   3: def compute():\n   4:     return apply_rate(200, 10)",
               "attempt": 0
             },
             "output": {
@@ -2920,10 +3045,9 @@
             },
             "output": {
               "ok": true,
-              "message": "exit_code: 0\nstdout:\n.                                                                        [100%]\n1 passed in 0.05s\nstderr:\n（空）",
+              "message": "verify 通过（pytest）",
               "data": {
-                "method": "shell",
-                "command": "python -m pytest -q"
+                "method": "pytest"
               }
             }
           }
@@ -2931,7 +3055,7 @@
       },
       "failure_step": null,
       "reason": null,
-      "elapsed_ms": 89863.3,
+      "elapsed_ms": 62555.2,
       "steps": [
         {
           "step": "locate",
@@ -2971,8 +3095,8 @@
         },
         "last_verify": {
           "ok": true,
-          "method": "shell",
-          "summary": "exit_code: 0\nstdout:\n..                                                                       [100%]\n2 passed in 0.06s\nstderr:\n（空）"
+          "method": "pytest",
+          "summary": "verify 通过（pytest）"
         },
         "harness_last_node": {
           "intent_id": "fix_bug",
@@ -2997,13 +3121,13 @@
               "intent_id": "fix_bug",
               "confidence": "high",
               "route": "harness_pipeline",
-              "raw": "```json\n{\n  \"intent_id\": \"fix_bug\",\n  \"confidence\": \"high\",\n  \"skill\": null\n}\n```"
+              "raw": "{\n  \"intent_id\": \"fix_bug\",\n  \"confidence\": \"high\",\n  \"skill\": null\n}"
             }
           },
           {
             "stage": "rig",
             "output": {
-              "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-logic_median_even-8di7p779\\.mini-coding-agent\\rig.db",
+              "db_path": "C:\\Users\\hspcadmin\\AppData\\Local\\Temp\\eval-logic_median_even-_8yuz45s\\.mini-coding-agent\\rig.db",
               "files": 2,
               "symbols": 3,
               "imports": 1,
@@ -3063,7 +3187,7 @@
           {
             "stage": "generate",
             "input": {
-              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'stats.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"stats.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\npytest 失败：tests/test_stats.py::test_median_even — assert median([1,2,3,4]) == 2.5，实际 3。偶数长度列表的中位数计算有误。\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\ndef median(nums):\n    ordered = sorted(nums)\n    mid = len(ordered) // 2\n    return ordered[mid]\n\n```\n\n定位上下文：\n\n# rig: median (function) @ stats.py:1\n# file: stats.py L1-L14\n   1: def median(nums):\n   2:     ordered = sorted(nums)\n   3:     mid = len(ordered) // 2\n   4:     return ordered[mid]\n\n# rig: test_median_odd @ tests/test_stats.py:3\n# file: tests/test_stats.py L1-L14\n   1: from stats import median\n   2: \n   3: def test_median_odd():\n   4:     assert median([1, 3, 5]) == 3\n   5: \n   6: def test_median_even():\n   7:     assert median([1, 2, 3, 4]) == 2.5\n\n# rig: test_median_even @ tests/test_stats.py:6\n# file: tests/test_stats.py L1-L17\n   1: from stats import median\n   2: \n   3: def test_median_odd():\n   4:     assert median([1, 3, 5]) == 3\n   5: \n   6: def test_median_even():\n   7:     assert median([1, 2, 3, 4]) == 2.5\n\n# rig: neighbor stats.py\n# file: stats.py L1-L120\n   1: def median(nums):\n   2:     ordered = sorted(nums)\n   3:     mid = len(ordered) // 2\n   4:     return ordered[mid]",
+              "prompt": "你是 Mini-Coding-Agent 的代码生成节点。\n\n当前意图：fix_bug。偏向修复 traceback/测试失败。禁止 write_file/patch_file 修改 tests/ 下任何文件，只改源码。系统已从磁盘读取 old_text（见下方「待替换原文」），你只需输出 new_text 作为完整替换内容（含缩进）。调用 patch_file 时 args 仅含 path 与 new_text，不要输出 old_text。\n\n根据下方待替换原文，输出唯一一个 <tool> JSON 调用 patch_file，path 固定为 'stats.py'，仅含 new_text。\n\n不要输出 <final>；不要调用其他工具。\n\n示例：<tool>{\"name\":\"patch_file\",\"args\":{\"path\":\"stats.py\",\"new_text\":\"…完整替换内容…\"}}</tool>\n\n目标：\npytest 失败：tests/test_stats.py::test_median_even — assert median([1,2,3,4]) == 2.5，实际 3。偶数长度列表的中位数计算有误。\n\n测试规格（必须满足；禁止修改 tests/ 下文件；以 assert 为准，勿擅自改语义）：\n- assert median([1, 3, 5]) == 3\n- assert median([1, 2, 3, 4]) == 2.5\n- assert median([1, 3, 5]) == 3\n- assert median([1, 2, 3, 4]) == 2.5\n\n待替换原文（old_text，系统已确定，勿修改）：\n```\ndef median(nums):\n    ordered = sorted(nums)\n    mid = len(ordered) // 2\n    return ordered[mid]\n\n```\n\n定位上下文：\n\n# rig: median (function) @ stats.py:1\n# file: stats.py L1-L14\n   1: def median(nums):\n   2:     ordered = sorted(nums)\n   3:     mid = len(ordered) // 2\n   4:     return ordered[mid]\n\n# rig: test_median_odd @ tests/test_stats.py:3\n# file: tests/test_stats.py L1-L14\n   1: from stats import median\n   2: \n   3: def test_median_odd():\n   4:     assert median([1, 3, 5]) == 3\n   5: \n   6: def test_median_even():\n   7:     assert median([1, 2, 3, 4]) == 2.5\n\n# rig: test_median_even @ tests/test_stats.py:6\n# file: tests/test_stats.py L1-L17\n   1: from stats import median\n   2: \n   3: def test_median_odd():\n   4:     assert median([1, 3, 5]) == 3\n   5: \n   6: def test_median_even():\n   7:     assert median([1, 2, 3, 4]) == 2.5\n\n# rig: neighbor stats.py\n# file: stats.py L1-L120\n   1: def median(nums):\n   2:     ordered = sorted(nums)\n   3:     mid = len(ordered) // 2\n   4:     return ordered[mid]",
               "attempt": 0
             },
             "output": {
@@ -3090,10 +3214,9 @@
             },
             "output": {
               "ok": true,
-              "message": "exit_code: 0\nstdout:\n..                                                                       [100%]\n2 passed in 0.06s\nstderr:\n（空）",
+              "message": "verify 通过（pytest）",
               "data": {
-                "method": "shell",
-                "command": "python -m pytest -q"
+                "method": "pytest"
               }
             }
           }
@@ -3101,7 +3224,7 @@
       },
       "failure_step": null,
       "reason": null,
-      "elapsed_ms": 98804.3,
+      "elapsed_ms": 105763.2,
       "steps": [
         {
           "step": "locate",

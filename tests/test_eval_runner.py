@@ -104,7 +104,8 @@ def test_tasks_migrated_tier_and_grading():
 
 
 def test_resolve_task_grading_defaults():
-    assert resolve_task_grading({"expect_files": {"a.py": "x"}}) == "exact"
+    assert resolve_task_grading({"expect_files": {"a.py": "x"}}) == "tests_only"
+    assert resolve_task_grading({"grading": "exact"}) == "tests_only"
     assert resolve_task_grading({"verify": "pytest"}) == "tests_only"
     assert resolve_task_grading({"grading": "tests_only", "expect_files": {"a.py": "x"}}) == "tests_only"
 
@@ -128,14 +129,26 @@ def test_tests_only_passes_without_expect_match(tmp_path):
     assert err is None
 
 
-def test_exact_requires_expect_files_match(tmp_path):
+def test_semantic_fix_passes_without_expect_files_match(tmp_path):
+    """Phase 8.1：终判只看 pytest，语义正确即过（不要求与 expect_files 字符串一致）。"""
     tasks = load_tasks(TASKS_PATH)
     task = next(t for t in tasks if t["id"] == "nameerror_calc")
     setup_task_workspace(tmp_path, task)
     (tmp_path / "calc.py").write_text("def add(a, b):\n    return a + b + 0\n", encoding="utf-8")
     err, step = check_task_grading(tmp_path, task)
-    assert err is not None
-    assert step == "expect_files"
+    assert err is None
+    assert step is None
+
+
+def test_syntaxerror_paren_semantic_fix_passes(tmp_path):
+    """括号题：return a + b 与 expect 的 return (a + b) 字符串不同，但 pytest 应过。"""
+    tasks = load_tasks(TASKS_PATH)
+    task = next(t for t in tasks if t["id"] == "syntaxerror_paren")
+    setup_task_workspace(tmp_path, task)
+    (tmp_path / "calc.py").write_text("def add(a, b):\n    return a + b\n", encoding="utf-8")
+    assert check_expect_files(tmp_path, task["expect_files"]) is not None
+    err, _ = check_task_grading(tmp_path, task)
+    assert err is None
 
 
 def test_medium_no_file_hint_message_has_no_traceback_path():
@@ -322,7 +335,7 @@ def test_run_single_task_live_optional():
     from eval.run_eval import check_ollama_available, run_single_task
     from mini_coding_agent.platform.models import OllamaModelClient
 
-    if check_ollama_available("http://127.0.0.1:11434", "qwen2.5-coder:7b", timeout=3):
+    if not check_ollama_available("http://127.0.0.1:11434", "qwen2.5-coder:7b", timeout=3):
         pytest.skip("Ollama 不可用")
 
     tasks = load_tasks(TASKS_PATH)

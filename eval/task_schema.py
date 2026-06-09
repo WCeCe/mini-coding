@@ -246,7 +246,7 @@ def assert_pipeline_contract(
         expected_method = verify_arch.get("method")
         actual_method = last_verify.get("method")
         if expected_method == "pytest":
-            checks.append(_check("verify.method", actual_method, "shell"))
+            checks.append(_check("verify.method", actual_method, "pytest"))
         elif expected_method == "py_compile":
             checks.append(_check("verify.method", actual_method, "py_compile"))
 

@@ -10,7 +10,11 @@ from mini_coding_agent.modes.graph.nodes import NODE_RUNNERS
 from mini_coding_agent.modes.graph.nodes.verify import _modified_python_paths
 from mini_coding_agent.modes.graph.harness_trace import record_node_stage
 from mini_coding_agent.modes.graph.session_ctx import observe_post_node, persist_pipeline_session
-from mini_coding_agent.modes.graph.verify_rules import collect_tests_snapshot, restore_workspace_for_retry
+from mini_coding_agent.modes.graph.verify_rules import (
+    collect_tests_snapshot,
+    lock_tests_enabled,
+    restore_workspace_for_retry,
+)
 from mini_coding_agent.modes.graph.types import (
     DagInstance,
     DagNode,
@@ -27,12 +31,16 @@ def execute_dag(agent, dag: DagInstance, user_message: str) -> PipelineResult:
         agent=agent,
         dag=dag,
         user_message=user_message,
-        test_baseline=collect_tests_snapshot(Path(agent.root)),
+        test_baseline=(
+            collect_tests_snapshot(Path(agent.root)) if lock_tests_enabled() else {}
+        ),
         locate_min_snippets_with_source_lines=locate_min,
     )
     order = topological_sort(dag.nodes)
     verify_policy = dag.retry.get("verify")
     verify_retries = 0
+    policy_block_retries = 0
+    generate_invoke = 0
     step = 0
     index = 0
 
@@ -47,7 +55,8 @@ def execute_dag(agent, dag: DagInstance, user_message: str) -> PipelineResult:
             ))
 
         if node.type == "generate":
-            ctx.generate_attempt = verify_retries
+            ctx.generate_attempt = generate_invoke
+            generate_invoke += 1
 
         result = runner(ctx)
         ctx.node_outputs[node.id] = result
@@ -60,8 +69,9 @@ def execute_dag(agent, dag: DagInstance, user_message: str) -> PipelineResult:
 
         if node.type == "generate" and not result.ok and result.data.get("policy_block"):
             ctx.last_verify_error = result.message
-            if verify_policy and verify_retries < verify_policy.max:
-                verify_retries += 1
+            max_policy = verify_policy.max if verify_policy else 0
+            if max_policy and policy_block_retries < max_policy:
+                policy_block_retries += 1
                 retry_index = _node_index(order, node.id)
                 if retry_index is None:
                     return _finish(agent, ctx, PipelineResult(ok=False, reason=result.message))
