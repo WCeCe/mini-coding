@@ -276,10 +276,11 @@ def apply_harness_contract_hints(agent, task: dict) -> None:
     agent._harness_locate_min_snippets = locate_arch.get("min_snippets_with_source_lines", 0)
 
 
-def _patch_tool_output(old_text: str, new_text: str, path: str) -> str:
+def _guided_patch_tool_output(path: str, new_text: str) -> str:
+    """Phase 7.2：模型只产 path + new_text（系统注入 old_text）。"""
     return (
         '<tool>{"name":"patch_file","args":'
-        f'{{"path":{json.dumps(path)},"old_text":{json.dumps(old_text)},"new_text":{json.dumps(new_text)}}}'
+        f'{{"path":{json.dumps(path)},"new_text":{json.dumps(new_text)}}}'
         "}</tool>"
     )
 
@@ -307,7 +308,7 @@ def fake_script_to_outputs(fake_script: list[dict]) -> list[str]:
             outputs.append(json.dumps(payload))
         elif "patch" in step:
             p = step["patch"]
-            outputs.append(_patch_tool_output(p["old_text"], p["new_text"], p["path"]))
+            outputs.append(_guided_patch_tool_output(p["path"], p["new_text"]))
         elif "write" in step:
             w = step["write"]
             outputs.append(_write_tool_output(w["path"], w["content"]))

@@ -10,7 +10,7 @@ from mini_coding_agent.modes.graph.types import NodeResult
 from tests.test_harness_fix_bug_e2e import (
     TRACEBACK,
     _build_agent,
-    _patch_tool,
+    _patch_new_text,
 )
 
 
@@ -78,8 +78,8 @@ def test_verify_retry_prompt_uses_summary_not_full_log(tmp_path):
     agent = _build_agent(
         tmp_path,
         [
-            _patch_tool("return a + c", "return a +"),
-            _patch_tool("return a +", "return a + b"),
+            _patch_new_text("def add(a, b):\n    return a +\n"),
+            _patch_new_text("def add(a, b):\n    return a + b\n"),
         ],
     )
     dag = plan("fix_bug", user_message=TRACEBACK, workspace_root=tmp_path)
@@ -103,7 +103,7 @@ def test_verify_retry_prompt_uses_summary_not_full_log(tmp_path):
     assert result.ok
     assert len(agent.model_client.prompts) == 2
     second_prompt = agent.model_client.prompts[1]
-    assert "上次验证失败" in second_prompt
+    assert "上次失败，请修正" in second_prompt
     assert "NameError" in second_prompt
     assert "frame_199" not in second_prompt
     assert len(second_prompt) < len(huge_log)

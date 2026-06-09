@@ -512,11 +512,23 @@ def _resolve_fix_bug_patch_target(
 
     """从 locate 或 LLM 指定的非 tests 路径读取唯一 old_text。"""
 
-    path = _primary_source_file_from_locate(ctx)
+    norm_llm = llm_path.replace("\\", "/").strip() if llm_path else ""
 
-    if not path and llm_path and not _is_test_path(llm_path):
+    candidates = _locate_source_file_candidates(ctx)
 
-        path = llm_path
+    path: str | None = None
+
+    if norm_llm and not _is_test_path(norm_llm) and _source_file_exists(ctx, norm_llm):
+
+        path = norm_llm
+
+    elif candidates:
+
+        path = candidates[0]
+
+    elif norm_llm and not _is_test_path(norm_llm):
+
+        path = norm_llm
 
     if not path:
 
@@ -548,13 +560,27 @@ def _resolve_fix_bug_patch_target(
 
 
 
-def _primary_source_file_from_locate(ctx: HarnessContext) -> str | None:
+def _source_file_exists(ctx: HarnessContext, path_str: str) -> bool:
+
+    try:
+
+        return ctx.agent.path(path_str).is_file()
+
+    except Exception:
+
+        return False
+
+
+
+
+
+def _locate_source_file_candidates(ctx: HarnessContext) -> list[str]:
 
     locate = ctx.node_outputs.get("locate")
 
     if not locate:
 
-        return None
+        return []
 
 
 
@@ -590,15 +616,27 @@ def _primary_source_file_from_locate(ctx: HarnessContext) -> str | None:
 
     seen: set[str] = set()
 
+    ordered: list[str] = []
+
     for path in candidates:
 
         if path not in seen:
 
             seen.add(path)
 
-            return path
+            ordered.append(path)
 
-    return None
+    return ordered
+
+
+
+
+
+def _primary_source_file_from_locate(ctx: HarnessContext) -> str | None:
+
+    candidates = _locate_source_file_candidates(ctx)
+
+    return candidates[0] if candidates else None
 
 
 
